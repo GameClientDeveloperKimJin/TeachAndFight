@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
-# 세션 시작 시 GitHub 이슈(#3~#20) open/closed로 현재 W단계 판정.
-# 매핑 원본: docs/DEV_SPEC.md 맨 아래 "이슈 매핑" 표 (여기 값은 그 표의 스냅샷).
+# 세션 시작 시 (1) GitHub 이슈(#3~#20) open/closed로 현재 W단계 판정
+# (2) 팀원 브랜치(dev_*) 진행 상태까지 함께 보고.
+# 이슈 매핑 원본: docs/DEV_SPEC.md 맨 아래 "이슈 매핑" 표 (여기 값은 그 표의 스냅샷).
 set -uo pipefail
 
 emit() {
@@ -24,7 +25,7 @@ w3="12 13 14 15 16"
 w4="17 18 19 20"
 
 current_w=""
-report=""
+issue_report=""
 for w in 1 2 3 4; do
   case "$w" in
     1) issues="$w1" ;;
@@ -42,15 +43,40 @@ for w in 1 2 3 4; do
 
   if [ -n "$w_open" ]; then
     [ -z "$current_w" ] && current_w="$w"
-    report="${report}W${w}:open${w_open}; "
+    issue_report="${issue_report}W${w}:open${w_open}; "
   else
-    report="${report}W${w}:closed; "
+    issue_report="${issue_report}W${w}:closed; "
   fi
 done
 
+# --- 팀원 브랜치(dev_*) 진행 상태 ---
+branch_report=""
+if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  git fetch origin --quiet 2>/dev/null || true
+
+  base="origin/develop"
+  git rev-parse --verify "$base" >/dev/null 2>&1 || base="origin/main"
+
+  for ref in $(git for-each-ref --format='%(refname:short)' 'refs/remotes/origin/dev_*' 2>/dev/null); do
+    name="${ref#origin/}"
+    ahead=$(git rev-list --count "$base..$ref" 2>/dev/null || echo "?")
+    last_date=$(git log -1 --format='%ci' "$ref" 2>/dev/null | cut -c1-10)
+    last_subject=$(git log -1 --format='%s' "$ref" 2>/dev/null)
+    if [ "$ahead" = "0" ]; then
+      branch_report="${branch_report}${name}: develop 대비 진전 없음(마지막 ${last_date} '${last_subject}'); "
+    else
+      branch_report="${branch_report}${name}: +${ahead}커밋(마지막 ${last_date} '${last_subject}'); "
+    fi
+  done
+fi
+
+if [ -z "$branch_report" ]; then
+  branch_report="(팀원 브랜치 조회 불가 또는 dev_* 브랜치 없음)"
+fi
+
 if [ -z "$current_w" ]; then
-  emit "[세션 시작 점검] #3~#20 전체 closed. ($report) 다음 작업 사용자에게 확인."
+  emit "[세션 시작 점검] 이슈: #3~#20 전체 closed. ($issue_report) 브랜치: $branch_report 다음 작업 사용자에게 확인."
 else
   next_w=$((current_w + 1))
-  emit "[세션 시작 점검] 현재 W${current_w} 진행중. ($report) 마일스톤 게이트: W${current_w} 이슈(개발자A+개발자B+공용) 전부 closed 전엔 W${next_w} 코드 작성 금지 - 담당자 무관 예외 없음. 세션 시작 시 이 상태를 사용자에게 먼저 보고할 것."
+  emit "[세션 시작 점검] 이슈: 현재 W${current_w} 진행중. ($issue_report) 브랜치: $branch_report 마일스톤 게이트: W${current_w}의 이슈+실작업(개발자A+개발자B+공용) 전부 끝나기 전엔 W${next_w} 코드 작성 금지 - 담당자 무관 예외 없음. 브랜치 진전 없는 팀원이 있으면 이슈 open여부와 무관하게 그 사람 몫이 안 끝난 것으로 간주. 세션 시작 시 이 상태를 사용자에게 먼저 보고할 것."
 fi
