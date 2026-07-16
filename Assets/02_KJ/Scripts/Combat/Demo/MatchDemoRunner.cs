@@ -46,9 +46,9 @@ namespace TeachAndFight.Combat.Demo
             brainB = new TurtleBrain();
 
             if (fighterA == null)
-                fighterA = new GameObject("FighterA_Rush").AddComponent<FighterController>();
+                fighterA = CreatePlaceholderFighter("FighterA_Rush", Color.red);
             if (fighterB == null)
-                fighterB = new GameObject("FighterB_Turtle").AddComponent<FighterController>();
+                fighterB = CreatePlaceholderFighter("FighterB_Turtle", Color.blue);
 
             float half = config.Arena.StartDistance * 0.5f;
             fighterA.Init(config, fighterB, -half);
@@ -60,6 +60,30 @@ namespace TeachAndFight.Combat.Demo
             matchTimer = config.Match.DurationSec;
             decisionTimer = 0f;
             Outcome = null;
+        }
+
+        private static Sprite placeholderSprite;
+
+        // Inspector에 스프라이트 있는 캐릭터를 직접 할당 안 했을 때(테스트/빠른 확인용) 눈에 보이는 대체용 사각형 부여
+        private static FighterController CreatePlaceholderFighter(string name, Color color)
+        {
+            var go = new GameObject(name);
+            var renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sprite = GetPlaceholderSprite();
+            renderer.color = color;
+            go.transform.localScale = new Vector3(0.8f, 1.8f, 1f); // 1x1 사각형 스프라이트를 사람 비율로
+            return go.AddComponent<FighterController>();
+        }
+
+        private static Sprite GetPlaceholderSprite()
+        {
+            if (placeholderSprite != null)
+                return placeholderSprite;
+
+            var texture = Texture2D.whiteTexture;
+            // pixelsPerUnit = texture.width -> 스프라이트 1개 = 월드 1x1 유닛 정사각형
+            placeholderSprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(0.5f, 0f), texture.width);
+            return placeholderSprite;
         }
 
         private void Update()
