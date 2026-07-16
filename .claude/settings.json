@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/session-start-milestone-check.sh",
+            "timeout": 15,
+            "statusMessage": "W단계 진행 상태 점검 중..."
+          }
+        ]
+      }
+    ]
+  }
+}
