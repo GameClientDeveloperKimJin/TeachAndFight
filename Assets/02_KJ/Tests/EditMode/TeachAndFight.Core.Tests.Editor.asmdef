@@ -3,6 +3,7 @@
     "rootNamespace": "TeachAndFight.Core.Tests",
     "references": [
         "TeachAndFight.Core",
+        "TeachAndFight.Combat",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

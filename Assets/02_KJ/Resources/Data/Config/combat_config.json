@@ -1,0 +1,35 @@
+{
+  "stats": {
+    "maxHp": 100,
+    "maxStamina": 100,
+    "staminaRegenPerSec": 15,
+    "staminaRegenIdlePerSec": 30,
+    "moveSpeed": 3.5,
+    "ultGaugePerDamageDealt": 1.5,
+    "ultGaugePerDamageTaken": 1.0,
+    "maxUltGauge": 100
+  },
+  "arena": {
+    "width": 12,
+    "startDistance": 6
+  },
+  "match": {
+    "durationSec": 60
+  },
+  "dash": {
+    "duration": 0.2,
+    "invulnerableDuration": 0.15,
+    "moveDistance": 2.5
+  },
+  "hitReaction": {
+    "hitStunDuration": 0.3,
+    "heavyHitStunDuration": 0.5,
+    "knockback": 0.5
+  },
+  "skills": {
+    "light_attack": { "damage": 8, "range": 1.2, "startup": 0.15, "recovery": 0.25, "whiffRecovery": 0.35, "stamina": 10, "cooldown": 0 },
+    "heavy_attack": { "damage": 20, "range": 1.5, "startup": 0.45, "recovery": 0.50, "whiffRecovery": 0.90, "stamina": 25, "cooldown": 0 },
+    "dash": { "damage": 0, "range": 0, "startup": 0.05, "recovery": 0.15, "whiffRecovery": 0, "stamina": 20, "cooldown": 1.0 },
+    "ultimate": { "damage": 35, "range": 2.0, "startup": 0.60, "recovery": 0.70, "whiffRecovery": 1.20, "stamina": 0, "cooldown": 0 }
+  }
+}
