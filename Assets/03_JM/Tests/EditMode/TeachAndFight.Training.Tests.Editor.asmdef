@@ -1,0 +1,27 @@
+{
+    "name": "TeachAndFight.Training.Tests.Editor",
+    "rootNamespace": "TeachAndFight.Training.Tests",
+    "references": [
+        "TeachAndFight.Training",
+        "TeachAndFight.Core",
+        "UniTask",
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll",
+        "Newtonsoft.Json.dll"
+    ],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
