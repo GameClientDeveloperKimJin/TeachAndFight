@@ -61,8 +61,70 @@ Unity Test Runner(EditMode) Run All → 통과. 콘솔의 폴백 경고 2개는 
 - **셀프 리뷰**: 생성 직후 P0(프레임 의존)~P3(매직넘버) 체크리스트로 자체 검증 — 상태 누수/키 하드코딩 없음 확인.
 - **순수 함수 분리**: 파싱·프롬프트 조립을 네트워크와 분리해 EditMode에서 자동 검증 가능하게 설계.
 
-### 커밋(예정)
+### 커밋
 
 ```
 [training] LLMClient(ILLMClient/Anthropic Haiku) + 03장 프롬프트 빌더 + 폴백/파싱 테스트 (#9)
+```
+
+---
+
+## #10 훈련 컴파일 파이프라인 (W2 · 근거 03·01장)
+
+### 목표
+
+#9(LLMClient)와 KJ의 #4(RuleValidator)를 잇는 **오케스트레이션**. 자연어 한 마디를 검증된 규칙 변경으로 바꿔 규칙셋에 반영한다. 03장 "게임 측 처리 흐름"을 구현.
+
+```
+코치 발화 + 현재 규칙셋 + 남은 슬롯
+  → TrainingPromptBuilder(프롬프트)
+  → ILLMClient.CompleteAsync
+  → RuleDiffParser(응답 JSON → RuleDiff)
+  → needs_confirmation/conflict 분기
+  → RuleValidator.ApplyOps(최종 저지선)
+  → TrainingCompileResult
+```
+
+### 결과 상태 4가지 (03장 완료기준 4케이스와 1:1)
+
+| Outcome | 조건 | 처리 |
+|---|---|---|
+| `Applied` | needs_confirmation=false + ApplyOps 성공 | 규칙셋 갱신 + disciple_reply |
+| `NeedsConfirmation` | needs_confirmation=true | 적용 안 함 — 거절/되묻기/모순 전부 여기(모순은 conflict_with 세팅) |
+| `Rejected` | needs_confirmation=false 인데 ApplyOps 실패 | 적용 안 함, 고정 거절 대사(LLM이 무효 규칙을 냈을 때 최종 저지선) |
+| `Failed` | LLM 호출/파싱 실패 | 폴백 대사, 적용 안 함 |
+
+- 거절/되묻기/모순은 LLM이 전부 `needs_confirmation=true`로 돌려주므로 한 분기로 처리, 차이는 대사 톤과 conflict_with.
+- **Rejected 대사**: `"무슨 말인지 모르겠어요. 다시 알려주시겠어요?"` (상수, 존댓말 톤). LLM이 붙인 대사는 무효 규칙과 함께 온 거라 신뢰하지 않음.
+- 대화 맥락 2턴 전달은 지금 미배선(단일 턴만) — #14 UI에서 연결 예정.
+
+### 만든 파일 (`Assets/03_JM/Scripts/Training/`)
+
+| 파일 | 역할 |
+|---|---|
+| `TrainingCompileResult.cs` | Outcome enum + 결과 타입(갱신 규칙셋/대사/conflict/오류) |
+| `RuleDiffParser.cs` | 응답 텍스트 → `RuleDiff` 파싱(펜스 재제거 방어), 순수 함수 |
+| `TrainingCompiler.cs` | 파이프라인 오케스트레이션 |
+| `Tests/EditMode/TrainingCompilerTests.cs` | 가짜 ILLMClient로 4케이스 검증 |
+| `Tests/EditMode/RuleDiffParserTests.cs` | 파싱/펜스/오류 |
+
+### 완료 기준 대비
+
+- [x] 정상 add diff 생성·반영 (Applied) — 자동 테스트
+- [x] 거절 케이스 동작 (NeedsConfirmation)
+- [x] 되묻기 케이스 동작 (NeedsConfirmation)
+- [x] 모순 케이스 conflict_with 지정 (NeedsConfirmation)
+- [x] 무효 규칙 최종 저지(Rejected) + LLM 실패 폴백(Failed)
+- [ ] **"10회 중 9회 이상 유효 diff"는 실제 API 키로 수동 측정 필요** (LLM 응답 특성상 자동화 범위 밖 — 03장/계획서 명시)
+
+### AI 활용 방식 (해커톤 기록용)
+
+- **스펙 우선(game-spec-first)**: 코딩 전 결과 상태 4가지·엣지케이스를 표로 확정하고 착수 → 재작업 0.
+- **기존 자산 재사용**: KJ의 `RuleValidator.ApplyOps`(깊은 복사 롤백)를 그대로 최종 저지선으로 사용, 중복 구현 안 함.
+- **순수 함수 + 의존성 주입**: `ILLMClient`를 주입받아 가짜 클라이언트로 네트워크 없이 4케이스 자동 검증.
+
+### 커밋
+
+```
+[training] 훈련 컴파일 파이프라인 TrainingCompiler + RuleDiff 파서 + 4케이스 테스트 (#10)
 ```
