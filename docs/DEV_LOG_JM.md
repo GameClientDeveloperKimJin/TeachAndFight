@@ -128,3 +128,57 @@ Unity Test Runner(EditMode) Run All → 통과. 콘솔의 폴백 경고 2개는 
 ```
 [training] 훈련 컴파일 파이프라인 TrainingCompiler + RuleDiff 파서 + 4케이스 테스트 (#10)
 ```
+
+---
+
+## 실제 LLM 검증 & 디버깅 기록 (#9·#10 B 항목 클리어)
+
+### 환경 세팅
+
+- `ANTHROPIC_API_KEY` 환경변수 등록 → **Unity Hub 트레이까지 완전 종료 후 재시작**해야 인식됨(프로세스가 시작 시 환경변수를 읽기 때문). 재시작 전엔 `키 감지: False`.
+- 크레딧 없으면 실호출이 HTTP 400 `credit balance too low` → 폴백. Plans & Billing에서 크레딧 충전 후 해결.
+
+### 버그: 자동 테스트는 통과했는데 실제 LLM은 Rejected
+
+`훈련 컴파일 파이프라인 검증` 첫 실행 결과 `Outcome=Rejected / errors: rule 누락`.
+
+원인 = **프롬프트가 규칙 JSON 구조를 안 가르쳐줌.** 실제 LLM 응답과 우리 스키마(01장) 불일치:
+
+| 항목 | LLM 출력 | 우리 스키마 |
+|---|---|---|
+| 규칙 위치 | op에 평평하게 | op 안 `rule` 객체로 중첩 |
+| 식별자 | `rule_id` | `id` |
+| 행동 필드 | `then` | `do` |
+
+→ 파서가 `op.rule`을 못 찾아 null → RuleValidator "rule 누락" → **최종 저지선이 정상적으로 걸러냄**. 스키마(KJ 공용 계약)는 못 바꾸므로 **프롬프트를 스키마에 맞게 수정**.
+
+### 수정
+
+- `docs/DEV_SPEC.md` 03장 `[diff JSON 형식]`을 **완전한 rule 객체 예시 + 필드명 명시**(`id`/`do`/중첩 `rule`)로 교체 → `TrainingPromptBuilder.SystemPrompt`에 동일 반영. (문서=원본 규칙 준수)
+
+### 재검증 결과 (통과)
+
+```
+Outcome=Applied / 규칙수 1
+추가된 규칙: id=rule_01 label=상대 궁극기 시작 시 대시로 회피 priority=9
+            when=enemy_action == ultimate_startup do=dash
+```
+
+자연어 → 실제 LLM → 올바른 diff → 검증 통과 → 규칙 반영까지 라이브 확인.
+
+### W2 진입조건 B·공용 최종 상태
+
+- [x] #9 실제 Anthropic 호출→응답 파싱 성공 (라이브)
+- [x] 03장 프롬프트로 유효 규칙 diff 1개 생성 (라이브, Applied)
+- [x] #9 키없음/타임아웃 폴백 (자동 테스트 + 라이브 400 폴백 확인)
+- [x] 공용: B의 diff가 KJ RuleSet 스키마로 파싱·적용됨 (라이브 Applied로 증명, 팀 15분 싱크만 남음)
+
+### 교훈 (해커톤 디버깅 포인트)
+
+**자동 테스트(손으로 만든 완벽한 JSON)만으론 부족하다.** 실제 LLM은 프롬프트가 덜 구체적이면 그럴듯하지만 계약과 다른 구조를 낸다. 수동 실호출 검증이 프롬프트 갭을 드러냈고, "스키마는 고정 계약이라 프롬프트를 맞춘다"가 정답. 검증기(최종 저지선)가 있어 잘못된 구조가 게임에 반영되진 않았다.
+
+### 커밋(예정)
+
+```
+[training] 03장 diff 프롬프트에 rule 객체 스키마 명시 + 파이프라인 실호출 검증 메뉴 (#10)
+```

@@ -270,7 +270,9 @@ actions: approach, retreat, keep_distance(range), dash(direction: toward|away), 
 7. priority는 상황이 구체적일수록 높게(7~9), 일반 행동일수록 낮게(1~4) 배정한다.
 
 [diff JSON 형식]
-{"ops":[{"op":"add|update|delete"}], "disciple_reply":"...", "needs_confirmation":bool, "conflict_with":"rule_XX"|null}
+- add/update: op 안에 완전한 "rule" 객체를 포함한다. delete: {"op":"delete","id":"rule_XX"}.
+- 규칙 식별자 필드는 "id"(rule_id 아님), 행동 필드는 "do"(then 아님). when은 {fact,op,value} 조건 배열.
+{"ops":[{"op":"add","rule":{"id":"rule_01","label":"짧은 한국어 설명","when":[{"fact":"enemy_action","op":"==","value":"ultimate_startup"}],"do":{"action":"dash","params":{"direction":"away"}},"priority":8}}],"disciple_reply":"...","needs_confirmation":false,"conflict_with":"rule_XX"|null}
 ```
 
 **유저 메시지 구성:**
