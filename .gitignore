@@ -67,6 +67,10 @@ ExportedObj/
 # Unity3D generated file on crash reports
 sysinfo.txt
 
+# 로컬 배치 테스트 실행 결과물 (-logFile / -testResults)
+test_log.txt
+test_results.xml
+
 # Mono auto generated files
 mono_crash.*
 
