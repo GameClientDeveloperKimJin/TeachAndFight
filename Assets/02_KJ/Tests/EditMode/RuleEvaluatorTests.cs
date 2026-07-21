@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using NUnit.Framework;
+using Newtonsoft.Json;
 using UnityEngine;
 using TeachAndFight.Combat;
 using TeachAndFight.Core.Rules;
@@ -167,6 +168,120 @@ namespace TeachAndFight.Core.Tests
             Assert.AreEqual(ActionType.LightAttack, cmd.Action, "스태미나 부족한 첫 규칙은 스킵하고 다음 규칙으로 폴백해야 함");
             Assert.IsTrue(eventLog.Events.Any(e => e.Type == "stamina_out" && e.RuleId == "want_heavy"));
             Assert.IsTrue(eventLog.Events.Any(e => e.Type == "rule_fired" && e.RuleId == "fallback_light"));
+
+            Object.DestroyImmediate(x.gameObject);
+            Object.DestroyImmediate(y.gameObject);
+        }
+
+        [Test]
+        public void Evaluate_StaminaExactlyZero_SkipsAllPaidRules_FallsBackToFreeAction()
+        {
+            // 완료기준 명시 케이스: 스태미나 0에서 공격 규칙(유료) 전부 스킵 -> 무료 행동(approach)으로 폴백
+            var noRegenConfig = MakeConfig();
+            noRegenConfig.Stats.StaminaRegenPerSec = 0f;
+            noRegenConfig.Stats.StaminaRegenIdlePerSec = 0f;
+
+            var x = new GameObject("X").AddComponent<FighterController>();
+            var y = new GameObject("Y").AddComponent<FighterController>();
+            x.Init(noRegenConfig, y, -3f);
+            y.Init(noRegenConfig, x, 3f);
+
+            PerformAndSettle(x, ActionCommand.HeavyAttack()); // 100 -> 75
+            PerformAndSettle(x, ActionCommand.HeavyAttack()); // 75 -> 50
+            PerformAndSettle(x, ActionCommand.HeavyAttack()); // 50 -> 25
+            PerformAndSettle(x, ActionCommand.HeavyAttack()); // 25 -> 0
+
+            Assert.AreEqual(0f, x.Stamina);
+
+            var ruleSet = new RuleSet
+            {
+                MaxSlots = 5,
+                Rules = new List<Rule>
+                {
+                    new Rule
+                    {
+                        Id = "want_heavy",
+                        When = new List<Condition> { new Condition { Fact = "self_stamina_pct", Op = "<=", Value = 100 } },
+                        Do = new RuleAction { Action = "heavy_attack" },
+                        Priority = 9,
+                    },
+                    new Rule
+                    {
+                        Id = "want_light",
+                        When = new List<Condition> { new Condition { Fact = "self_stamina_pct", Op = "<=", Value = 100 } },
+                        Do = new RuleAction { Action = "light_attack" },
+                        Priority = 7,
+                    },
+                    new Rule
+                    {
+                        Id = "fallback_approach",
+                        When = new List<Condition> { new Condition { Fact = "self_stamina_pct", Op = "<=", Value = 100 } },
+                        Do = new RuleAction { Action = "approach" },
+                        Priority = 5,
+                    },
+                },
+            };
+
+            var eventLog = new EventLog();
+            var evaluator = new RuleEvaluator(ruleSet, eventLog);
+
+            var cmd = evaluator.Evaluate(x, y, timeLeft: 60f, matchTime: 30f);
+
+            Assert.AreEqual(ActionType.Approach, cmd.Action, "유료 행동 2개 모두 막히면 자원 소모 없는 규칙까지 폴백해야 함");
+            Assert.IsTrue(eventLog.Events.Any(e => e.Type == "stamina_out" && e.RuleId == "want_heavy"));
+            Assert.IsTrue(eventLog.Events.Any(e => e.Type == "stamina_out" && e.RuleId == "want_light"));
+            Assert.IsTrue(eventLog.Events.Any(e => e.Type == "rule_fired" && e.RuleId == "fallback_approach"));
+
+            Object.DestroyImmediate(x.gameObject);
+            Object.DestroyImmediate(y.gameObject);
+        }
+
+        [Test]
+        public void Evaluate_JsonLoadedRuleSet_DrivesRealCombatOverTicks()
+        {
+            // 완료기준: "JSON 규칙셋 로드 후 실제 전투에 반영되어 동작" - 파일이 아닌 JSON 텍스트에서 역직렬화한
+            // RuleSet을 그대로 RuleEvaluator에 태우고, Evaluate -> TryPerform -> Tick 루프를 여러 틱 돌려
+            // 실제 FighterController 상태(피해)에 반영되는지 확인한다.
+            const string json = @"{
+              ""version"": 1,
+              ""fighter_name"": ""제자"",
+              ""max_slots"": 5,
+              ""rules"": [
+                { ""id"": ""close_in"", ""when"": [ { ""fact"": ""distance"", ""op"": "">"", ""value"": 1.2 } ], ""do"": { ""action"": ""approach"" }, ""priority"": 5 },
+                { ""id"": ""poke"", ""when"": [ { ""fact"": ""distance"", ""op"": ""<="", ""value"": 1.2 } ], ""do"": { ""action"": ""light_attack"" }, ""priority"": 8 }
+              ]
+            }";
+
+            var ruleSet = JsonConvert.DeserializeObject<RuleSet>(json);
+            CollectionAssert.IsEmpty(RuleValidator.ValidateRuleSet(ruleSet), "샘플 JSON은 어휘사전/스키마를 통과해야 함");
+
+            var x = new GameObject("X").AddComponent<FighterController>();
+            var y = new GameObject("Y").AddComponent<FighterController>();
+            x.Init(config, y, -3f);
+            y.Init(config, x, 3f); // distance 6 - close_in 규칙으로 접근부터 시작해야 함
+
+            var eventLog = new EventLog();
+            var evaluator = new RuleEvaluator(ruleSet, eventLog);
+
+            const float dt = 0.1f;
+            float matchTime = 0f;
+            for (int i = 0; i < 150; i++)
+            {
+                if (x.State == FighterState.Idle || x.State == FighterState.Move)
+                {
+                    var cmd = evaluator.Evaluate(x, y, timeLeft: 60f - matchTime, matchTime: matchTime);
+                    if (!x.TryPerform(cmd))
+                        x.TryPerform(ActionCommand.Idle());
+                }
+
+                x.Tick(dt);
+                y.Tick(dt);
+                matchTime += dt;
+            }
+
+            Assert.Less(y.Hp, y.MaxHp, "JSON 규칙셋의 poke 규칙이 실제로 실행되어 피해를 입혀야 함");
+            Assert.IsTrue(eventLog.Events.Any(e => e.Type == "rule_fired" && e.RuleId == "close_in"));
+            Assert.IsTrue(eventLog.Events.Any(e => e.Type == "rule_fired" && e.RuleId == "poke"));
 
             Object.DestroyImmediate(x.gameObject);
             Object.DestroyImmediate(y.gameObject);
