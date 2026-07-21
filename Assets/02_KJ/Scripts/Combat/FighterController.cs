@@ -34,6 +34,64 @@ namespace TeachAndFight.Combat
             State == FighterState.Dash &&
             (Config.Dash.Duration - stateTimer) < Config.Dash.InvulnerableDuration;
 
+        // 01장 어휘 사전 ActionStateValues 중 하나로 매핑 - RuleEvaluator의 self_action/enemy_action fact 소스
+        public string ActionStateLabel
+        {
+            get
+            {
+                switch (State)
+                {
+                    case FighterState.Idle:
+                        return "idle";
+                    case FighterState.Move:
+                        return MoveActionLabel();
+                    case FighterState.Dash:
+                        return "dash";
+                    case FighterState.AttackStartup:
+                    case FighterState.AttackActive:
+                        return AttackActionLabel();
+                    case FighterState.Recovery:
+                        return "whiff_recovery";
+                    case FighterState.HitStun:
+                    case FighterState.Down:
+                        return "hit_stun";
+                    default:
+                        return "idle";
+                }
+            }
+        }
+
+        private string MoveActionLabel()
+        {
+            if (activeMoveAction == ActionType.Approach)
+                return "approach";
+            if (activeMoveAction == ActionType.Retreat)
+                return "retreat";
+
+            if (activeMoveAction == ActionType.KeepDistance)
+            {
+                if (Mathf.Approximately(moveDir, 0f))
+                    return "idle";
+
+                float diff = Opponent.transform.position.x - transform.position.x;
+                bool approaching = !Mathf.Approximately(diff, 0f) && Mathf.Sign(moveDir) == Mathf.Sign(diff);
+                return approaching ? "approach" : "retreat";
+            }
+
+            return "idle";
+        }
+
+        private string AttackActionLabel()
+        {
+            switch (committedAction)
+            {
+                case ActionType.LightAttack: return "light_startup";
+                case ActionType.HeavyAttack: return "heavy_startup";
+                case ActionType.Ultimate: return "ultimate_startup";
+                default: return "idle";
+            }
+        }
+
         // (공격자, 피해량, heavy/ultimate 여부)
         public event Action<FighterController, float, bool> OnHitLanded;
         public event Action<FighterController, float, bool> OnHitTaken;

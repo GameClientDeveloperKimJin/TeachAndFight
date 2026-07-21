@@ -1,7 +1,9 @@
 {
     "name": "TeachAndFight.Combat",
     "rootNamespace": "TeachAndFight.Combat",
-    "references": [],
+    "references": [
+        "TeachAndFight.Core"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
