@@ -1,0 +1,19 @@
+{
+    "name": "TeachAndFight.Combat.Editor",
+    "rootNamespace": "TeachAndFight.Combat.EditorTools",
+    "references": [
+        "TeachAndFight.Combat",
+        "TeachAndFight.Core"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
