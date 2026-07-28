@@ -1,0 +1,21 @@
+{
+    "name": "TeachAndFight.Integration.Editor",
+    "rootNamespace": "TeachAndFight.Integration.EditorTools",
+    "references": [
+        "TeachAndFight.Core",
+        "TeachAndFight.Combat",
+        "TeachAndFight.Training",
+        "UniTask"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
