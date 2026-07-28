@@ -1,10 +1,13 @@
 {
-    "name": "TeachAndFight.Combat",
-    "rootNamespace": "TeachAndFight.Combat",
+    "name": "TeachAndFight.Combat.Editor",
+    "rootNamespace": "TeachAndFight.Combat.EditorTools",
     "references": [
+        "TeachAndFight.Combat",
         "TeachAndFight.Core"
     ],
-    "includePlatforms": [],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

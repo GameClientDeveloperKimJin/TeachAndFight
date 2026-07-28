@@ -161,6 +161,7 @@ AI에게 각 단계 지시할 때 컨텍스트로 줄 것: **DEV_SPEC.md 00장 +
 | 11~13 | #12 상대 5종 규칙셋 JSON (러쉬/철벽/그림자/카멜레온/사범) | #14 Training.unity 화면 (규칙 슬롯, 대화 로그, 가르치기 버튼) |
 | 13~15 | #13 Match.unity 화면 (HP/스태미나 바, 타이머, 규칙 라벨) | #15 LockerRoom.unity 화면 + 회고 LLM 연동 |
 | 14~15 | 공용: #16 GameFlow 씬 전환 + 데이터 컨테이너 — 양쪽 화면 얼추 나온 뒤 반나절~하루 페어 작업 |
+| 15~16 | 공용: #21(신규, GitHub 등록 필요) 캐릭터 에셋 확보(AI 생성 또는 보유 에셋) — A/B 공동. Animator 설정+재생 코드는 B 단독(아래 별도 섹션 참조) |
 
 **W4 진입 조건**
 
@@ -170,9 +171,61 @@ AI에게 각 단계 지시할 때 컨텍스트로 줄 것: **DEV_SPEC.md 00장 +
 | A | #13 Match.unity에서 발동 규칙 라벨이 실제 RuleEvaluator 로그와 일치 | 경기 중 라벨-로그 대조 |
 | B | #14 Training→Match 전환 시 방금 추가한 규칙이 즉시 반영 | 규칙 추가 직후 경기 시작해서 확인 |
 | B | #15 LockerRoom 회고 LLM이 정상 호출되고 규칙 발동 통계가 실제 EventLog와 일치 | 경기 1회 후 락커룸 진입해서 확인 |
+| B | #21 기본 애니메이션(Idle/Move/Dash/Attack 3종/HitStun/Down) 최소 1세트가 Match.unity에서 재생 확인 | 경기 1회 플레이하며 상태 전환마다 애니메이션 반영 확인 |
 | 공용 | #16 GameFlow로 Training⇄Match→LockerRoom→Training 3씬 순환이 규칙셋/EventLog 유실 없이 동작 | 최소 2바퀴 순환 플레이 |
+| 공용 | #21 에셋 확보(캐릭터 스프라이트/클립 소스) 완료 | 8종 클립 원본 소스 확보 확인 |
 
-**주의**: #16 순환이 안 맞으면 W4에서 아무리 연출/밸런싱을 다듬어도 의미 없음 — 이게 W3→W4의 하드 게이트.
+**주의**: #16 순환이 안 맞으면 W4에서 아무리 연출/밸런싱을 다듬어도 의미 없음 — 이게 W3→W4의 하드 게이트. #21은 하드 게이트는 아니지만(순수 비주얼, 데이터 흐름과 무관), #17(연출 폴리싱: 슬로모/스케일펀치)이 애니메이션 위에 얹는 작업이라 W4 시작 전까지 최소한의 클립은 있어야 #17이 헛돌지 않음 — 최대한 W3 안에서 끝낼 것.
+
+---
+
+### W3 공용 추가 작업 — 캐릭터 비주얼(스프라이트 + 애니메이터) 적용 (#21, 신규)
+
+> #8까지 완료 시점 기준 워크로드: A(#4,5,6,7,8,12,13,17,18=9개) vs B(#9,10,11,14,15,19=6개) — A가 이슈 수 더 많음. 이 작업은 두 몫으로 쪼개서 워크로드를 맞춘다.
+> - **에셋 확보**(AI 생성 또는 팀 보유 에셋 활용): A+B 공동, 병렬로 소스 구하고 취합만 함께.
+> - **Animator 설정 + 재생 코드 구현**: **개발자 B 단독 담당** (이슈 수 6개 < A 9개, 워크로드 격차 보정).
+>
+> GitHub에 신규 이슈 등록 후 진행 권장(현재 세션 시작 프로토콜이 #3~#20만 조회하므로, 등록 안 하면 게이트 자동 점검에서 누락됨 — 번호는 팀 협의 후 확정, 아래는 #21로 임시 표기).
+
+**목적**: 지금까지 코드 FSM(`FighterController`)만으로 굴러가던 전투에 실제 캐릭터 스프라이트 + 애니메이션을 입혀서, W4 연출 폴리싱(#17)과 밸런싱 플레이테스트(#18)가 비주얼 피드백 위에서 진행되게 한다.
+
+**필요 에셋 (A+B 공동)**
+
+| 항목 | 옵션 | 비고 |
+|---|---|---|
+| 캐릭터 스프라이트 | (A) 에셋스토어 2D 파이터 스프라이트팩(예: 픽셀/카툰 계열 액션 캐릭터, 좌우 대칭 사용 가능한 것) 구매/무료 팩 | 라이선스 상업적 이용 가능 여부 확인 |
+| | (B) AI 이미지 생성(스프라이트시트 형태로 프롬프트) 후 Sprite Editor로 그리드 슬라이스 | 프레임 일관성(같은 캐릭터/같은 화풍) 확보가 관건 — 여러 장 생성 후 수작업 보정 필요할 수 있음 |
+| 최소 클립 세트 | Idle(loop), Move(loop), Dash(non-loop), Attack_Light(non-loop), Attack_Heavy(non-loop), Attack_Ultimate(non-loop), HitStun(non-loop), Down/KO(non-loop, 마지막 프레임 홀드) | 8종. Recovery/Whiff는 별도 클립 없이 Attack 클립 꼬리 재사용하거나 Idle로 바로 전환해도 무방(완료기준엔 없음) |
+| 프레임 수 권장 | Idle 4~6f, Move 6~8f, Dash 3~4f, Attack류 4~6f(startup+active 합쳐서 1클립), HitStun 2~3f, Down 3~4f | 낮은 우선순위 항목이므로 과도한 프레임 수 투자 지양 |
+
+**적용 스크립트 / 코드 위치 (담당: 개발자 B 단독)**
+
+| 파일 | 변경 내용 |
+|---|---|
+| `Assets/02_KJ/Scripts/Combat/FighterController.cs` | `State` setter가 여러 지점에 산재(`TryPerform`, `Tick`, `ResolveAttackActive`, `ApplyHit` 등)되어 있어, 상태 변경을 한 곳으로 모으는 `private void SetState(FighterState s)` 헬퍼로 리팩터링하고 `public event Action<FighterState> OnStateChanged` 추가해 변경 시점마다 발행. `committedAction`(현재 private 필드)을 `public ActionType CommittedAction => committedAction;` 으로 공개 — Attack계열 진입 시 Light/Heavy/Ultimate 구분에 필요. |
+| `Assets/02_KJ/Scripts/Combat/FighterAnimatorBridge.cs` (신규) | `FighterController` + `Animator`를 같은 GameObject에서 참조하는 새 MonoBehaviour. `OnStateChanged`, `OnHitTaken`, `OnWhiff`, `OnDown` 구독해 Animator 파라미터 갱신. `FacingRight`(기존 공개 프로퍼티) 값으로 매 프레임 `SpriteRenderer.flipX` 갱신(좌우 반전은 이 스크립트에서 처리 — `FighterController` 쪽은 위치 계산만 하고 시각 반전은 알지 못함). |
+| Prefab (Fighter) | `SpriteRenderer` + `Animator` 컴포넌트 추가, 위 브릿지 스크립트 부착, Animator Controller 연결 |
+
+**Animator 파라미터**
+
+| 이름 | 타입 | 설명 |
+|---|---|---|
+| `State` | Int | `FighterState` enum과 동일 순서(0 Idle ~ 7 Down)로 매핑 |
+| `AttackKind` | Int | 0 None / 1 Light / 2 Heavy / 3 Ultimate — `AttackStartup`/`AttackActive` 진입 시 `CommittedAction` 값으로 세팅 |
+
+**전이 구조 — AnyState만 사용**
+
+- 클립 간 직접 연결(Idle→Move, Move→Attack 등 개별 전이)은 만들지 않는다. 모든 클립은 `Any State → 클립` 전이 하나씩만 갖는다(Attack류는 `State == AttackStartup/Active && AttackKind == N` 조건 추가).
+- 이유: 상태 전이 권한이 이미 코드(`FighterController.Tick`/`stateTimer`)에 있음 — Animator가 자체적으로 "이 상태에서 저 상태로만 갈 수 있다"는 그래프를 또 만들면 코드 FSM과 이중 관리가 되고, 어느 한쪽만 수정해도 어긋난다. Any State 단일 계층이면 파라미터 값만 맞으면 항상 원하는 클립으로 전이 가능 — 코드 쪽 상태 변경 로직을 그대로 신뢰.
+- 전이 설정: `Exit Time` 체크 해제(즉시 전이), `Transition Duration` 0.05~0.1초 정도의 짧은 크로스페이드만(끊김 방지용, 게임플레이 타이밍에는 영향 없음 — 타이밍은 여전히 `stateTimer`가 결정).
+- `Has Exit Time` / 조건 없는 자동 루프백 전이 금지 — 파라미터가 안 바뀌면 같은 클립에 계속 머무르게(각 클립을 Loop 여부에 맞게 Loop Time 체크).
+- HitStun/Down처럼 즉시 끊겨도 어색하지 않은 상태는 Interruption Source를 `Current State`로 둬서 재히트 시 애니메이션이 처음부터 다시 재생되게 한다.
+
+**완료 기준(안)**
+
+- 8종 클립 전부 Match.unity 데모 경기 중 최소 1회씩 재생 확인(Idle/Move/Dash/Attack 3종/HitStun/Down)
+- 좌우 반전이 `FacingRight`와 항상 일치
+- 히트/다운 시 애니메이션이 실제 `OnHitTaken`/`OnDown` 이벤트 타이밍과 눈으로 봤을 때 어긋나지 않음
 
 ### W4 — 폴리싱 + 밸런싱 + 데모
 
