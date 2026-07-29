@@ -4,7 +4,10 @@
     "references": [
         "TeachAndFight.Training",
         "TeachAndFight.Core",
-        "UniTask"
+        "TeachAndFight.Flow",
+        "UniTask",
+        "UnityEngine.UI",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [
         "Editor"

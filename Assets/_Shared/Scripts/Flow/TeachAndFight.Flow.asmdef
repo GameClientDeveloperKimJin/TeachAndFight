@@ -1,11 +1,9 @@
 {
-    "name": "TeachAndFight.Training",
-    "rootNamespace": "TeachAndFight.Training",
+    "name": "TeachAndFight.Flow",
+    "rootNamespace": "TeachAndFight.Flow",
     "references": [
         "TeachAndFight.Core",
-        "TeachAndFight.Flow",
-        "UniTask",
-        "UnityEngine.UI"
+        "TeachAndFight.Combat"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
