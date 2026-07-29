@@ -1,0 +1,19 @@
+{
+    "name": "TeachAndFight.Match",
+    "rootNamespace": "TeachAndFight.Match",
+    "references": [
+        "TeachAndFight.Core",
+        "TeachAndFight.Combat",
+        "TeachAndFight.Flow",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
