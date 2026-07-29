@@ -12,7 +12,7 @@ open_numbers=" $(gh issue list --state open --json number --jq '.[].number' 2>/d
 
 w1="3 4 5 6"
 w2="7 8 9 10 11"
-w3="12 13 14 15 16 22"
+w3="12 13 14 15 16"
 w4="17 18 19 20"
 
 current_w=""
