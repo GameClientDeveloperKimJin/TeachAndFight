@@ -1,0 +1,16 @@
+{
+  "version": 1,
+  "fighter_name": "사범",
+  "max_slots": 10,
+  "rules": [
+    { "id": "rule_01", "label": "궁 즉발", "when": [ { "fact": "self_ult_gauge", "op": ">=", "value": 100 } ], "do": { "action": "ultimate" }, "priority": 10 },
+    { "id": "rule_02", "label": "강공 낌새엔 회피 대시", "when": [ { "fact": "enemy_action", "op": "==", "value": "heavy_startup" }, { "fact": "distance", "op": "<=", "value": 2.0 } ], "do": { "action": "dash", "params": { "direction": "away" } }, "priority": 9 },
+    { "id": "rule_03", "label": "헛치면 강공 처벌", "when": [ { "fact": "enemy_action", "op": "==", "value": "whiff_recovery" }, { "fact": "distance", "op": "<=", "value": 1.5 } ], "do": { "action": "heavy_attack" }, "priority": 8 },
+    { "id": "rule_04", "label": "접근엔 견제", "when": [ { "fact": "enemy_action", "op": "==", "value": "approach" }, { "fact": "distance", "op": "<=", "value": 1.5 } ], "do": { "action": "light_attack" }, "priority": 8 },
+    { "id": "rule_05", "label": "저체력 시 궁 게이지 관리", "when": [ { "fact": "self_hp_pct", "op": "<", "value": 30 }, { "fact": "self_ult_gauge", "op": "<", "value": 100 }, { "fact": "distance", "op": "<", "value": 2.5 } ], "do": { "action": "retreat" }, "priority": 8 },
+    { "id": "rule_06", "label": "저스태미나 휴식", "when": [ { "fact": "self_stamina_pct", "op": "<", "value": 30 } ], "do": { "action": "idle" }, "priority": 7 },
+    { "id": "rule_07", "label": "스태미나 여유 시 강공", "when": [ { "fact": "distance", "op": "<=", "value": 1.5 }, { "fact": "self_stamina_pct", "op": ">=", "value": 25 } ], "do": { "action": "heavy_attack" }, "priority": 6 },
+    { "id": "rule_08", "label": "근접 약공", "when": [ { "fact": "distance", "op": "<=", "value": 1.2 } ], "do": { "action": "light_attack" }, "priority": 5 },
+    { "id": "rule_09", "label": "닥돌", "when": [ { "fact": "distance", "op": ">", "value": 1.2 } ], "do": { "action": "approach" }, "priority": 4 }
+  ]
+}

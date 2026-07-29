@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "fighter_name": "철벽",
+  "max_slots": 10,
+  "rules": [
+    { "id": "rule_01", "label": "거리 유지", "when": [ { "fact": "distance", "op": "<", "value": 3.0 } ], "do": { "action": "retreat" }, "priority": 4 },
+    { "id": "rule_02", "label": "헛치면 처벌", "when": [ { "fact": "enemy_action", "op": "==", "value": "whiff_recovery" } ], "do": { "action": "heavy_attack" }, "priority": 8 },
+    { "id": "rule_03", "label": "접근엔 견제", "when": [ { "fact": "enemy_action", "op": "==", "value": "approach" }, { "fact": "distance", "op": "<=", "value": 1.5 } ], "do": { "action": "light_attack" }, "priority": 6 },
+    { "id": "rule_04", "label": "휴식", "when": [ { "fact": "self_stamina_pct", "op": "<", "value": 30 } ], "do": { "action": "idle" }, "priority": 7 }
+  ]
+}
