@@ -1,4 +1,5 @@
 using System;
+using System.IO;
 using System.Text;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -9,15 +10,28 @@ using UnityEngine.Networking;
 namespace TeachAndFight.Training.LLM
 {
     // Anthropic Claude(Haiku) 구현. UnityWebRequest POST + UniTask.
-    // API 키는 환경변수 ANTHROPIC_API_KEY로만 주입 - 코드/저장소에 하드코딩 금지.
+    // API 키는 환경변수 ANTHROPIC_API_KEY 또는 프로젝트 로컬 파일(.secrets/, gitignore 처리됨)로만 주입 - 코드/저장소에 하드코딩 금지.
     public sealed class AnthropicLLMClient : ILLMClient
     {
         private readonly string _apiKey;
 
-        // 기본 생성자: 환경변수에서 키를 읽는다.
+        // 기본 생성자: 환경변수 우선, 없으면 이 프로젝트 전용 로컬 키 파일로 폴백(다른 프로젝트엔 영향 없음).
         public AnthropicLLMClient()
-            : this(Environment.GetEnvironmentVariable(LLMSettings.ApiKeyEnvVar))
+            : this(Environment.GetEnvironmentVariable(LLMSettings.ApiKeyEnvVar) ?? ReadLocalKeyFile())
         {
+        }
+
+        private static string ReadLocalKeyFile()
+        {
+            try
+            {
+                var path = Path.Combine(Application.dataPath, "..", LLMSettings.LocalKeyFilePath);
+                return File.Exists(path) ? File.ReadAllText(path).Trim() : null;
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         // 테스트/명시 주입용.
