@@ -11,6 +11,9 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/01_Scenes/Training.unity
     guid: cd5ae5e582f56f24781eb8b4189269e9
+  - enabled: 1
+    path: Assets/01_Scenes/LockerRoom.unity
+    guid: 1a3956c976e4aca4d86f1af3503a1c39
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   m_UseUCBPForAssetBundles: 0

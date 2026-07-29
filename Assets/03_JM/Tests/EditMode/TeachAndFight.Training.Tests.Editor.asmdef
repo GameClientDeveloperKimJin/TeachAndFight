@@ -3,7 +3,9 @@
     "rootNamespace": "TeachAndFight.Training.Tests",
     "references": [
         "TeachAndFight.Training",
+        "TeachAndFight.LockerRoom",
         "TeachAndFight.Core",
+        "TeachAndFight.Combat",
         "TeachAndFight.Flow",
         "UniTask",
         "UnityEngine.TestRunner",

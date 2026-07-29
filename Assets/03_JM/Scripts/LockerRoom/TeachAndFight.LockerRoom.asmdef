@@ -1,18 +1,15 @@
 {
-    "name": "TeachAndFight.Training.Editor",
-    "rootNamespace": "TeachAndFight.Training.EditorTools",
+    "name": "TeachAndFight.LockerRoom",
+    "rootNamespace": "TeachAndFight.LockerRoom",
     "references": [
-        "TeachAndFight.Training",
-        "TeachAndFight.LockerRoom",
         "TeachAndFight.Core",
+        "TeachAndFight.Combat",
         "TeachAndFight.Flow",
+        "TeachAndFight.Training",
         "UniTask",
-        "UnityEngine.UI",
-        "Unity.InputSystem"
+        "UnityEngine.UI"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,
