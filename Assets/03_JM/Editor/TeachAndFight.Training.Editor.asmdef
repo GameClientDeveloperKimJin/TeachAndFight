@@ -5,6 +5,7 @@
         "TeachAndFight.Training",
         "TeachAndFight.LockerRoom",
         "TeachAndFight.ArtPreview",
+        "TeachAndFight.Combat",
         "TeachAndFight.Core",
         "TeachAndFight.Flow",
         "UniTask",

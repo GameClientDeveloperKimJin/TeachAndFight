@@ -16,6 +16,9 @@ namespace TeachAndFight.Combat
         public float UltGauge { get; private set; }
         public bool FacingRight { get; private set; } = true;
 
+        // #22 애니메이션 브릿지용: 현재 커밋된 행동(공격 종류 구분). 시각 전용 읽기 노출(최소 변경).
+        public ActionType CommittedAction => committedAction;
+
         public FighterController Opponent { get; private set; }
         public CombatConfig Config { get; private set; }
 
