@@ -4,6 +4,7 @@
     "references": [
         "TeachAndFight.Training",
         "TeachAndFight.LockerRoom",
+        "TeachAndFight.ArtPreview",
         "TeachAndFight.Core",
         "TeachAndFight.Flow",
         "UniTask",
