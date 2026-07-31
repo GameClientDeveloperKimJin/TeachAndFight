@@ -4,6 +4,8 @@
     "references": [
         "TeachAndFight.Core",
         "TeachAndFight.Combat",
+        "TeachAndFight.Flow",
+        "TeachAndFight.Match",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

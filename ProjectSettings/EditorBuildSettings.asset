@@ -15,14 +15,8 @@ EditorBuildSettings:
     path: Assets/01_Scenes/LockerRoom.unity
     guid: 1a3956c976e4aca4d86f1af3503a1c39
   - enabled: 1
-    path: Assets/_Shared/Art/Characters/IronWall/_Preview/IronWallPreview.unity
-    guid: cace6b8b846689b48841d4757f30b45d
-  - enabled: 1
-    path: Assets/_Shared/Art/Characters/Shadow/_Preview/ShadowPreview.unity
-    guid: 72ac9e0dc24df27488c582632c2aa07d
-  - enabled: 1
-    path: Assets/_Shared/Art/Characters/Master/_Preview/MasterPreview.unity
-    guid: 4560e6178abfef24ab4f76209e89e51c
+    path: Assets/01_Scenes/Match.unity
+    guid: 5443bfb4541d97f42bb16d6aceda68b5
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   m_UseUCBPForAssetBundles: 0

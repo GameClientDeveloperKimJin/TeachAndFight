@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "fighter_name": "러쉬",
+  "max_slots": 10,
+  "rules": [
+    { "id": "rule_01", "label": "닥돌", "when": [ { "fact": "distance", "op": ">", "value": 1.2 } ], "do": { "action": "approach" }, "priority": 3 },
+    { "id": "rule_02", "label": "근접 난타", "when": [ { "fact": "distance", "op": "<=", "value": 1.2 } ], "do": { "action": "light_attack" }, "priority": 5 },
+    { "id": "rule_03", "label": "궁 즉발", "when": [ { "fact": "self_ult_gauge", "op": ">=", "value": 100 } ], "do": { "action": "ultimate" }, "priority": 8 }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "version": 1,
+  "fighter_name": "카멜레온",
+  "max_slots": 10,
+  "rules": [
+    { "id": "rule_01", "label": "궁 즉발", "when": [ { "fact": "self_ult_gauge", "op": ">=", "value": 100 } ], "do": { "action": "ultimate" }, "priority": 10 },
+    { "id": "rule_02", "label": "초반 근접 난타", "when": [ { "fact": "time_left", "op": ">", "value": 40 }, { "fact": "distance", "op": "<=", "value": 1.2 } ], "do": { "action": "light_attack" }, "priority": 6 },
+    { "id": "rule_03", "label": "초반 닥돌", "when": [ { "fact": "time_left", "op": ">", "value": 40 }, { "fact": "distance", "op": ">", "value": 1.2 } ], "do": { "action": "approach" }, "priority": 5 },
+    { "id": "rule_04", "label": "중반 헛치면 처벌", "when": [ { "fact": "time_left", "op": "<=", "value": 37 }, { "fact": "time_left", "op": ">", "value": 20 }, { "fact": "enemy_action", "op": "==", "value": "whiff_recovery" }, { "fact": "distance", "op": "<=", "value": 1.5 } ], "do": { "action": "heavy_attack" }, "priority": 7 },
+    { "id": "rule_05", "label": "중반 거리 유지", "when": [ { "fact": "time_left", "op": "<=", "value": 37 }, { "fact": "time_left", "op": ">", "value": 20 }, { "fact": "distance", "op": "<", "value": 3.0 } ], "do": { "action": "retreat" }, "priority": 6 },
+    { "id": "rule_06", "label": "후반 궁 올인 난타", "when": [ { "fact": "time_left", "op": "<=", "value": 17 }, { "fact": "distance", "op": "<=", "value": 1.5 } ], "do": { "action": "heavy_attack" }, "priority": 7 },
+    { "id": "rule_07", "label": "후반 닥돌", "when": [ { "fact": "time_left", "op": "<=", "value": 17 }, { "fact": "distance", "op": ">", "value": 1.2 } ], "do": { "action": "approach" }, "priority": 6 }
+  ]
+}

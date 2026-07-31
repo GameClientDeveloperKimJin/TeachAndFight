@@ -69,11 +69,46 @@ if [ -z "$branch_report" ]; then
   branch_report="(팀원 브랜치 조회 불가 또는 dev_* 브랜치 없음)"
 fi
 
+# --- 담당자별 TODO (이슈 제목 [A]/[B]/[공용] 태그 기준, DEV_SPEC.md 매핑: 개발자A=KJ, 개발자B=JM) ---
+a_todo=""
+b_todo=""
+common_todo=""
+while IFS=$'\t' read -r num title; do
+  [ -z "$num" ] && continue
+  case "$title" in
+    *"[A]"*) a_todo="${a_todo}  #${num} ${title}
+" ;;
+    *"[B]"*) b_todo="${b_todo}  #${num} ${title}
+" ;;
+    *"[공용]"*) common_todo="${common_todo}  #${num} ${title}
+" ;;
+  esac
+done <<EOF
+$(gh issue list --state open --json number,title --jq '.[] | "\(.number)\t\(.title)"' 2>/dev/null)
+EOF
+
 echo "===== 세션 시작 점검 ====="
 echo "--- 이슈 상태 ---"
 printf '%s' "$issue_report"
 echo "--- 브랜치 진행 상태 ---"
 printf '%s' "$branch_report"
+echo "--- 담당자별 TODO (개발자A=KJ, 개발자B=JM) ---"
+if [ -n "$a_todo" ]; then
+  echo "개발자A(KJ):"
+  printf '%s' "$a_todo"
+else
+  echo "개발자A(KJ): 없음 (open 이슈 없음, 대기)"
+fi
+if [ -n "$b_todo" ]; then
+  echo "개발자B(JM):"
+  printf '%s' "$b_todo"
+else
+  echo "개발자B(JM): 없음 (open 이슈 없음, 대기)"
+fi
+if [ -n "$common_todo" ]; then
+  echo "공용:"
+  printf '%s' "$common_todo"
+fi
 
 if [ -z "$current_w" ]; then
   echo "이슈: #3~#20 전체 closed. 다음 작업 확인 필요."
