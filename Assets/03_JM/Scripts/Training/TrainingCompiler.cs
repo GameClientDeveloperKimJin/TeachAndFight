@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Newtonsoft.Json;
@@ -25,11 +26,12 @@ namespace TeachAndFight.Training
         }
 
         public async UniTask<TrainingCompileResult> CompileAsync(
-            RuleSet current, string coachInput, CancellationToken cancellationToken = default)
+            RuleSet current, string coachInput, IReadOnlyList<string> recentDialogue = null,
+            CancellationToken cancellationToken = default)
         {
             int remainingSlots = current.MaxSlots - current.Rules.Count;
             string ruleSetJson = JsonConvert.SerializeObject(current);
-            string userMessage = TrainingPromptBuilder.BuildUserMessage(ruleSetJson, remainingSlots, coachInput);
+            string userMessage = TrainingPromptBuilder.BuildUserMessage(ruleSetJson, remainingSlots, coachInput, recentDialogue);
 
             var llm = await _client.CompleteAsync(
                 TrainingPromptBuilder.SystemPrompt, userMessage, cancellationToken);
