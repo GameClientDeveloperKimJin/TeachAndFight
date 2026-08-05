@@ -15,6 +15,7 @@
 /[Oo]bj/
 /[Bb]uild/
 /[Bb]uilds/
+/DemoBuild/
 /[Ll]ogs/
 /[Uu]ser[Ss]ettings/
 *.log
