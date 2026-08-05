@@ -8,28 +8,29 @@ using UnityEngine;
 
 namespace TeachAndFight.Training.EditorTools
 {
-    // #22 검증: FighterAnimatorBridge가 실제 전투 상태에 따라 애니메이션을 재생하는지 확인하는 씬.
-    // MatchDemoRunner(하드코딩 AI vs AI 오토배틀)에 스프라이트+Animator+브릿지를 붙인 파이터 2명을 넣어,
-    // 실제 Idle/Move/Dash/Attack/HitStun/Down 상태가 애니메이션으로 나오는지 눈으로 검증.
-    // (KJ의 Match.unity 씬은 건드리지 않고 별도 검증 씬으로 — 06장 씬 소유권 준수.)
+    // #22 검증/평가: FighterAnimatorBridge가 실제 전투 상태에 따라 애니메이션을 재생하는지 확인 +
+    // Play 중 A/B 파이터의 캐릭터를 6종 중 실시간 교체해 비교(BridgeBattleSelector).
+    // MatchDemoRunner(하드코딩 AI vs AI 오토배틀)에 스프라이트+Animator+브릿지 파이터 2명을 넣는다.
+    // (KJ의 Match.unity 씬은 건드리지 않고 별도 검증 씬 — 06장 씬 소유권 준수.)
     public static class BridgeBattleSceneBuilder
     {
         private const string CharactersDir = "Assets/_Shared/Art/Characters";
         private const string ScenePath = "Assets/_Shared/Art/_Preview/BridgeBattlePreview.unity";
 
-        [MenuItem("TeachAndFight/Build/Create Bridge Battle Preview (IronWall vs Shadow)")]
+        [MenuItem("TeachAndFight/Build/Create Bridge Battle Preview (character switch)")]
         public static void Build()
         {
-            var ctrlA = LoadController("IronWall");
-            var ctrlB = LoadController("Shadow");
-            if (ctrlA == null || ctrlB == null)
+            var chars = DiscoverCharacters();
+            if (chars.Count == 0)
+            {
+                Debug.LogError($"[BridgeBattle] {CharactersDir}에서 캐릭터를 못 찾음 ({{Char}}Preview.controller 필요)");
                 return;
+            }
 
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo())
                 return;
 
             EnsureFolder(Path.GetDirectoryName(ScenePath).Replace('\\', '/'));
-
             var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
 
             var cam = new GameObject("Main Camera", typeof(Camera)).GetComponent<Camera>();
@@ -40,39 +41,71 @@ namespace TeachAndFight.Training.EditorTools
             cam.backgroundColor = new Color(0.13f, 0.14f, 0.18f);
             cam.transform.position = new Vector3(0f, 1.2f, -10f);
 
-            var fighterA = BuildFighter("IronWall", ctrlA);
-            var fighterB = BuildFighter("Shadow", ctrlB);
+            // 기본 파이터: 목록 첫 두 캐릭터(Play에서 셀렉터로 교체 가능).
+            string defaultA = chars[0];
+            string defaultB = chars.Count > 1 ? chars[1] : chars[0];
+            var fighterA = BuildFighter(defaultA);
+            var fighterB = BuildFighter(defaultB);
 
-            // MatchDemoRunner에 두 파이터 주입(null이 아니면 placeholder 대신 이걸 사용).
-            var runnerGo = new GameObject("MatchDemoRunner");
-            var runner = runnerGo.AddComponent<MatchDemoRunner>();
-            var so = new SerializedObject(runner);
-            so.FindProperty("fighterA").objectReferenceValue = fighterA.GetComponent<FighterController>();
-            so.FindProperty("fighterB").objectReferenceValue = fighterB.GetComponent<FighterController>();
-            so.ApplyModifiedPropertiesWithoutUndo();
+            // MatchDemoRunner에 두 파이터 주입.
+            var runner = new GameObject("MatchDemoRunner").AddComponent<MatchDemoRunner>();
+            var rso = new SerializedObject(runner);
+            rso.FindProperty("fighterA").objectReferenceValue = fighterA.GetComponent<FighterController>();
+            rso.FindProperty("fighterB").objectReferenceValue = fighterB.GetComponent<FighterController>();
+            rso.ApplyModifiedPropertiesWithoutUndo();
+
+            // 캐릭터 셀렉터: 옵션 6종 + A/B 브릿지 배선.
+            var selector = new GameObject("BattleSelector").AddComponent<BridgeBattleSelector>();
+            var sso = new SerializedObject(selector);
+            sso.FindProperty("bridgeA").objectReferenceValue = fighterA.GetComponent<FighterAnimatorBridge>();
+            sso.FindProperty("bridgeB").objectReferenceValue = fighterB.GetComponent<FighterAnimatorBridge>();
+            var opts = sso.FindProperty("options");
+            opts.arraySize = chars.Count;
+            for (int i = 0; i < chars.Count; i++)
+            {
+                var el = opts.GetArrayElementAtIndex(i);
+                el.FindPropertyRelative("name").stringValue = chars[i];
+                el.FindPropertyRelative("controller").objectReferenceValue = LoadController(chars[i]);
+                el.FindPropertyRelative("idleSprite").objectReferenceValue = LoadIdle(chars[i]);
+            }
+            sso.ApplyModifiedPropertiesWithoutUndo();
 
             EditorSceneManager.MarkSceneDirty(scene);
             EditorSceneManager.SaveScene(scene, ScenePath);
             AddSceneToBuildSettings(ScenePath);
             AssetDatabase.SaveAssets();
 
-            Debug.Log($"[BridgeBattle] 완료 → {ScenePath}. Play: 철벽 vs 그림자 오토배틀 — 상태 따라 애니 재생 + 좌우반전 확인.");
+            Debug.Log($"[BridgeBattle] 완료 → {ScenePath} (기본 {defaultA} vs {defaultB}). " +
+                      $"Play: 오토배틀 + 우측 상단 버튼으로 A/B 캐릭터를 {chars.Count}종 실시간 교체.");
         }
 
-        private static GameObject BuildFighter(string character, RuntimeAnimatorController controller)
+        private static List<string> DiscoverCharacters()
+        {
+            var result = new List<string>();
+            foreach (var sub in AssetDatabase.GetSubFolders(CharactersDir))
+            {
+                var name = Path.GetFileName(sub);
+                if (name.StartsWith("_"))
+                    continue; // _Preview 등 제외
+                if (LoadController(name) != null)
+                    result.Add(name);
+            }
+            result.Sort();
+            return result;
+        }
+
+        private static GameObject BuildFighter(string character)
         {
             var go = new GameObject(character, typeof(SpriteRenderer), typeof(Animator),
                 typeof(FighterController), typeof(FighterAnimatorBridge));
             go.transform.localScale = new Vector3(0.35f, 0.35f, 1f); // 소스 스프라이트가 커서 축소(조정 가능)
 
             var sr = go.GetComponent<SpriteRenderer>();
-            var idle = AssetDatabase.LoadAssetAtPath<Sprite>(
-                $"{CharactersDir}/{character}/Idle/{character.ToLowerInvariant()}_idle_01.png");
+            var idle = LoadIdle(character);
             if (idle != null) sr.sprite = idle;
 
-            go.GetComponent<Animator>().runtimeAnimatorController = controller;
+            go.GetComponent<Animator>().runtimeAnimatorController = LoadController(character);
 
-            // 브릿지 배선: 컴포넌트 참조는 Awake에서 GetComponent로도 잡히지만 명시적으로 세팅 + prefix.
             var bridge = go.GetComponent<FighterAnimatorBridge>();
             var so = new SerializedObject(bridge);
             so.FindProperty("fighter").objectReferenceValue = go.GetComponent<FighterController>();
@@ -85,13 +118,12 @@ namespace TeachAndFight.Training.EditorTools
         }
 
         private static RuntimeAnimatorController LoadController(string character)
-        {
-            var path = $"{CharactersDir}/{character}/{character}Preview.controller";
-            var c = AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(path);
-            if (c == null)
-                Debug.LogError($"[BridgeBattle] 컨트롤러 못 찾음: {path}");
-            return c;
-        }
+            => AssetDatabase.LoadAssetAtPath<RuntimeAnimatorController>(
+                $"{CharactersDir}/{character}/{character}Preview.controller");
+
+        private static Sprite LoadIdle(string character)
+            => AssetDatabase.LoadAssetAtPath<Sprite>(
+                $"{CharactersDir}/{character}/Idle/{character.ToLowerInvariant()}_idle_01.png");
 
         private static void EnsureFolder(string assetPath)
         {

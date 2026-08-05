@@ -27,6 +27,15 @@ namespace TeachAndFight.Training.EditorTools
         [MenuItem("TeachAndFight/Build/Create Master Animation Preview Scene")]
         public static void BuildMaster() => BuildFor("Master");
 
+        [MenuItem("TeachAndFight/Build/Create Disciple Animation Preview Scene")]
+        public static void BuildDisciple() => BuildFor("Disciple");
+
+        [MenuItem("TeachAndFight/Build/Create Rush Animation Preview Scene")]
+        public static void BuildRush() => BuildFor("Rush");
+
+        [MenuItem("TeachAndFight/Build/Create Chameleon Animation Preview Scene")]
+        public static void BuildChameleon() => BuildFor("Chameleon");
+
         // 명명 규칙:
         //   폴더      Assets/_Shared/Art/Characters/{Char}
         //   컨트롤러  {Char}Preview.controller

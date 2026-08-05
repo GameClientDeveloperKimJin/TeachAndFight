@@ -20,6 +20,21 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Shared/Art/_Preview/BridgeBattlePreview.unity
     guid: 1dcca3c26f6d4cb4f8783d01bca2e66e
+  - enabled: 1
+    path: Assets/_Shared/Art/Characters/IronWall/_Preview/IronWallPreview.unity
+    guid: 63de2d5f09355d4488307bde0f075caa
+  - enabled: 1
+    path: Assets/_Shared/Art/Characters/Master/_Preview/MasterPreview.unity
+    guid: 4560e6178abfef24ab4f76209e89e51c
+  - enabled: 1
+    path: Assets/_Shared/Art/Characters/Rush/_Preview/RushPreview.unity
+    guid: 5e6f9e5cf4b63b64e996d8daf4fb2e5f
+  - enabled: 1
+    path: Assets/_Shared/Art/Characters/Disciple/_Preview/DisciplePreview.unity
+    guid: be3f749eae6376d46b849de9e7eaa44f
+  - enabled: 1
+    path: Assets/_Shared/Art/Characters/Chameleon/_Preview/ChameleonPreview.unity
+    guid: 4890d3177e3b3544a82b006eb55e57e5
   m_configObjects:
     com.unity.input.settings.actions: {fileID: -944628639613478452, guid: 2bcd2660ca9b64942af0de543d8d7100, type: 3}
   m_UseUCBPForAssetBundles: 0

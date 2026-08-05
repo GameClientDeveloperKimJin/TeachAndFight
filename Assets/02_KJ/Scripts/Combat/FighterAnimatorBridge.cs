@@ -34,6 +34,13 @@ namespace TeachAndFight.Combat
             if (spriteRenderer == null) spriteRenderer = GetComponent<SpriteRenderer>();
         }
 
+        // 런타임 캐릭터 교체(배틀 프리뷰 셀렉터용). 접두 변경 + 캐시 리셋 → 다음 프레임에 새 컨트롤러 상태로 재생.
+        public void SetCharacterPrefix(string prefix)
+        {
+            characterPrefix = prefix;
+            _currentState = null;
+        }
+
         // FighterController.Tick이 Update 타이밍에 상태를 갱신하므로, 그 뒤(LateUpdate)에 시각을 반영한다.
         private void LateUpdate()
         {

@@ -47,25 +47,8 @@ AnimationClip:
     m_Center: {x: 0, y: 0, z: 0}
     m_Extent: {x: 0, y: 0, z: 0}
   m_ClipBindingConstant:
-    genericBindings:
-    - serializedVersion: 2
-      path: 0
-      attribute: 0
-      script: {fileID: 0}
-      typeID: 212
-      customType: 23
-      isPPtrCurve: 1
-      isIntCurve: 0
-      isSerializeReferenceCurve: 0
-    pptrCurveMapping:
-    - {fileID: 21300000, guid: ba48c9c2f19c3c94bbaf429377b063e1, type: 3}
-    - {fileID: 21300000, guid: e9d640d6731dd7a4690493adf4f20f84, type: 3}
-    - {fileID: 21300000, guid: 04a820df326fbe74d851f59e2e11e474, type: 3}
-    - {fileID: 21300000, guid: 87d1d3b1d4e51ff4bad82c386e8a6492, type: 3}
-    - {fileID: 21300000, guid: a9e97063d4242344a8b8d8ab67693a66, type: 3}
-    - {fileID: 21300000, guid: 661879f9d9dea98428ed8d0803ae4dd5, type: 3}
-    - {fileID: 21300000, guid: ed561b6b5a6412a40936b4fea89dbff8, type: 3}
-    - {fileID: 21300000, guid: 59340df075d1d894d8f5794685f0d2bb, type: 3}
+    genericBindings: []
+    pptrCurveMapping: []
   m_AnimationClipSettings:
     serializedVersion: 2
     m_AdditiveReferencePoseClip: {fileID: 0}
