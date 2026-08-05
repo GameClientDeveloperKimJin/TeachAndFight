@@ -34,6 +34,9 @@ namespace TeachAndFight.Match
         // (피격자, 데미지 %) - 결정타 슬로모 연출 트리거용.
         public event Action<FighterController, float> OnBigHit;
 
+        // (헛친 파이터) - 공격이 사거리 밖이라 안 맞았을 때 UI 피드백용("헛침!").
+        public event Action<FighterController> OnAttackWhiff;
+
         public event Action<MatchResult> OnConcluded;
 
         public FighterController Self => self;
@@ -65,6 +68,8 @@ namespace TeachAndFight.Match
             self.OnHitTaken += HandleSelfHitTaken;
             self.OnHitTaken += (attacker, dmg, heavy) => CheckBigHit(self, dmg);
             enemy.OnHitTaken += (attacker, dmg, heavy) => CheckBigHit(enemy, dmg);
+            self.OnWhiff += who => OnAttackWhiff?.Invoke(who);
+            enemy.OnWhiff += who => OnAttackWhiff?.Invoke(who);
             self.OnDown += _ => Conclude();
             enemy.OnDown += _ => Conclude();
         }

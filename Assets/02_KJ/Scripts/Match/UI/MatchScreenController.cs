@@ -42,6 +42,7 @@ namespace TeachAndFight.Match.UI
         private bool paused;
         private float timeScale = 1f;
         private float slowMoFactor = 1f;
+        private bool slowMoActive;
 
         private void Start()
         {
@@ -68,6 +69,7 @@ namespace TeachAndFight.Match.UI
             presenter = new MatchPresenter(session, config, selfFighter, enemyFighter);
             presenter.OnRuleFired += HandleRuleFired;
             presenter.OnBigHit += HandleBigHit;
+            presenter.OnAttackWhiff += HandleAttackWhiff;
             presenter.OnConcluded += HandleConcluded;
 
             if (pauseButton != null) pauseButton.onClick.AddListener(OnPauseClicked);
@@ -129,14 +131,38 @@ namespace TeachAndFight.Match.UI
             StartCoroutine(SlowMoRoutine());
         }
 
+        private void HandleAttackWhiff(FighterController who)
+        {
+            var hud = who == selfFighter ? selfHud : enemyHud;
+            hud?.ShowRuleLabel("헛침!");
+        }
+
         private IEnumerator SlowMoRoutine()
         {
+            slowMoActive = true;
             slowMoFactor = BigHitSlowMoScale;
             yield return new WaitForSecondsRealtime(BigHitSlowMoDuration);
             slowMoFactor = 1f;
+            slowMoActive = false;
         }
 
         private void HandleConcluded(MatchResult result)
+        {
+            // 결정타가 곧바로 경기를 끝낸 경우, 슬로모 연출이 끝날 때까지 배너를 늦춰서
+            // 결정타 순간이 배너에 묻히지 않고 실제로 보이게 한다.
+            if (slowMoActive)
+                StartCoroutine(ShowBannerAfterSlowMo(result));
+            else
+                ShowBanner(result);
+        }
+
+        private IEnumerator ShowBannerAfterSlowMo(MatchResult result)
+        {
+            yield return new WaitUntil(() => !slowMoActive);
+            ShowBanner(result);
+        }
+
+        private void ShowBanner(MatchResult result)
         {
             if (resultBannerRoot != null)
                 resultBannerRoot.SetActive(true);
