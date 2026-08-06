@@ -11,6 +11,9 @@ namespace TeachAndFight.Combat
         LightAttack,
         HeavyAttack,
         Ultimate,
+        // #26 Tier2
+        CounterAttack,
+        Feint,
     }
 
     public enum DashDirection
@@ -33,5 +36,7 @@ namespace TeachAndFight.Combat
         public static ActionCommand LightAttack() => new ActionCommand { Action = ActionType.LightAttack };
         public static ActionCommand HeavyAttack() => new ActionCommand { Action = ActionType.HeavyAttack };
         public static ActionCommand Ultimate() => new ActionCommand { Action = ActionType.Ultimate };
+        public static ActionCommand CounterAttack() => new ActionCommand { Action = ActionType.CounterAttack };
+        public static ActionCommand Feint() => new ActionCommand { Action = ActionType.Feint };
     }
 }

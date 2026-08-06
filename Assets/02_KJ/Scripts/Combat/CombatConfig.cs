@@ -57,6 +57,17 @@ namespace TeachAndFight.Combat
         [JsonProperty("heavy_attack")] public SkillConfig HeavyAttack;
         [JsonProperty("dash")] public SkillConfig Dash;
         [JsonProperty("ultimate")] public SkillConfig Ultimate;
+        // #26 Tier2: 데미지 없는 페이크 startup - damage/range/whiffRecovery/cooldown 미사용
+        [JsonProperty("feint")] public SkillConfig Feint;
+        // 밸런스 패치: 처음엔 light_attack 재사용했으나 발동속도/사거리 동일해서 "반격"이 안 됨
+        // (상대보다 항상 늦게 맞음, 강공 상대로는 사거리 밖이라 헛침) - 전용 설정으로 분리.
+        [JsonProperty("counter_attack")] public SkillConfig CounterAttack;
+    }
+
+    // #26 Tier2: counter_attack 보너스 배율. light_attack 판정/애니 재사용, 이 배율만 별도.
+    public class CounterConfig
+    {
+        [JsonProperty("damageMultiplier")] public float DamageMultiplier;
     }
 
     public class CombatConfig
@@ -67,5 +78,6 @@ namespace TeachAndFight.Combat
         [JsonProperty("dash")] public DashConfig Dash;
         [JsonProperty("hitReaction")] public HitReactionConfig HitReaction;
         [JsonProperty("skills")] public SkillsConfig Skills;
+        [JsonProperty("counter")] public CounterConfig Counter;
     }
 }

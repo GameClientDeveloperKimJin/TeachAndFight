@@ -46,8 +46,8 @@ namespace TeachAndFight.Training
 
             var reply = string.IsNullOrWhiteSpace(diff.DiscipleReply) ? EmptyReplyFallback : diff.DiscipleReply;
 
-            // 3) needs_confirmation -> 적용하지 않음(거절/되묻기/모순)
-            if (diff.NeedsConfirmation)
+            // 3) 순수 되묻기(거절/모호함/충돌) -> ops 없이 needs_confirmation만 온 경우. 적용 안 함.
+            if (diff.NeedsConfirmation && diff.Ops.Count == 0)
             {
                 return new TrainingCompileResult
                 {
@@ -57,6 +57,25 @@ namespace TeachAndFight.Training
                     ConflictWith = diff.ConflictWith,
                 };
             }
+
+            // 유저 요구사항: 가르침 1번 = 규칙 1개. "약공이나 강공 준비하면" 같은 OR 뜻 문장을 LLM이
+            // 규칙 2개(add 2번)로 쪼개 응답하는 경우가 있었음 - 프롬프트도 고쳤지만(2번 규칙) LLM이
+            // 매번 지킨다는 보장이 없어서 최종 저지선을 코드에도 둔다(어휘 화이트리스트/RuleValidator와
+            // 같은 방어 원칙). 대신 거절하지 않고 하나씩 나눠 가르쳐달라고 되묻는다.
+            if (diff.Ops.Count > 1)
+            {
+                return new TrainingCompileResult
+                {
+                    Outcome = TrainingOutcome.NeedsConfirmation,
+                    ResultingRuleSet = current,
+                    DiscipleReply = "한 번에 여러 상황을 말씀하신 것 같아요. 하나씩 나눠서 가르쳐주시겠어요?",
+                };
+            }
+
+            // 여기 도달하면 ops가 정확히 1개. needs_confirmation=true인데 op가 1개 있는 경우는
+            // "A일 때 B하고 C일 때 D해줘"류 복합 문장(10번 규칙) - 확정된 첫 부분(A->B)은 그대로
+            // 적용하고, 나머지(C->D)에 대한 되묻기는 disciple_reply 뒷부분에 실려 온다. 그래서
+            // needs_confirmation 값과 무관하게 op 1개는 항상 적용을 시도한다.
 
             // 4) 적용 시도 -> RuleValidator가 최종 저지선(어휘/슬롯/중복)
             var apply = RuleValidator.ApplyOps(current, diff.Ops);

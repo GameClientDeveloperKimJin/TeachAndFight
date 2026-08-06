@@ -34,6 +34,11 @@ namespace TeachAndFight.Match.UI
         private const float BigHitSlowMoScale = 0.3f;
         private const float ResultBannerHoldSeconds = 2f; // 04장: 승/패 배너 2초 후 자동 전환
 
+        // 유저 피드백: 서로 안 부딪히고 거리만 유지하는 상태가 오래가면(예: 철벽류 상대)
+        // 화면이 멈춘 것처럼 보임 - 이 시간 넘으면 "얼어붙은 게 아니라 교착 상태"임을 알려준다.
+        // MatchPresenter.StalemateAutoConcludeSec(15초)에서 실제로 패배 조기 종료되므로 그 전에 경고.
+        private const float StalemateHintThresholdSec = 6f;
+
         private MatchPresenter presenter;
         private FighterController selfFighter;
         private FighterController enemyFighter;
@@ -43,6 +48,7 @@ namespace TeachAndFight.Match.UI
         private float timeScale = 1f;
         private float slowMoFactor = 1f;
         private bool slowMoActive;
+        private float sinceLastHit;
 
         private void Start()
         {
@@ -71,6 +77,7 @@ namespace TeachAndFight.Match.UI
             presenter.OnBigHit += HandleBigHit;
             presenter.OnAttackWhiff += HandleAttackWhiff;
             presenter.OnConcluded += HandleConcluded;
+            presenter.OnAnyHitLanded += () => sinceLastHit = 0f;
 
             if (pauseButton != null) pauseButton.onClick.AddListener(OnPauseClicked);
             if (speedHalfButton != null) speedHalfButton.onClick.AddListener(() => SetTimeScale(0.5f));
@@ -88,7 +95,9 @@ namespace TeachAndFight.Match.UI
             if (presenter == null || presenter.Concluded || paused)
                 return;
 
-            presenter.Step(Time.deltaTime * timeScale * slowMoFactor);
+            float dt = Time.deltaTime * timeScale * slowMoFactor;
+            presenter.Step(dt);
+            sinceLastHit += dt;
             RefreshHud();
             UpdateTimer();
             UpdateArenaMarkers();
@@ -102,8 +111,12 @@ namespace TeachAndFight.Match.UI
 
         private void UpdateTimer()
         {
-            if (timerText != null)
-                timerText.text = $"{presenter.TimeLeft:0}";
+            if (timerText == null)
+                return;
+
+            timerText.text = sinceLastHit >= StalemateHintThresholdSec
+                ? $"{presenter.TimeLeft:0}\n(교착 상태 - 계속되면 패배 처리됩니다)"
+                : $"{presenter.TimeLeft:0}";
         }
 
         private void UpdateArenaMarkers()

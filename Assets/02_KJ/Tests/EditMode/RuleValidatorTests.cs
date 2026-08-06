@@ -100,5 +100,65 @@ namespace TeachAndFight.Core.Tests
 
             Assert.IsFalse(result.Success);
         }
+
+        // #26 Tier1: 신규 fact 4종 정상 케이스
+        [TestCase("self_wall_dist", 3.0)]
+        [TestCase("self_action_duration", 2.5)]
+        [TestCase("enemy_action_duration", 0.0)]
+        [TestCase("enemy_whiff_count", 2.0)]
+        public void ApplyOps_Tier1Fact_Valid_Succeeds(string fact, double value)
+        {
+            var current = MakeRuleSet(5);
+            var rule = MakeValidRule("rule_01");
+            rule.When[0] = new Condition { Fact = fact, Op = ">=", Value = value };
+            var op = new RuleOp { Op = "add", Rule = rule };
+
+            var result = RuleValidator.ApplyOps(current, new List<RuleOp> { op });
+
+            Assert.IsTrue(result.Success, string.Join(", ", result.Errors));
+        }
+
+        [Test]
+        public void ApplyOps_Tier1Fact_OutOfRange_Fails()
+        {
+            var current = MakeRuleSet(5);
+            var rule = MakeValidRule("rule_01");
+            rule.When[0] = new Condition { Fact = "self_wall_dist", Op = ">=", Value = 999.0 };
+            var op = new RuleOp { Op = "add", Rule = rule };
+
+            var result = RuleValidator.ApplyOps(current, new List<RuleOp> { op });
+
+            Assert.IsFalse(result.Success);
+            Assert.IsTrue(result.Errors.Exists(e => e.Contains("범위 초과")));
+        }
+
+        // "공격 준비하면" 등 OR 뜻 문장을 규칙 1개로 표현하게 해주는 포괄 값(유저 QA 피드백)
+        [Test]
+        public void ApplyOps_AttackStartupValue_Valid_Succeeds()
+        {
+            var current = MakeRuleSet(5);
+            var rule = MakeValidRule("rule_01");
+            rule.When[0] = new Condition { Fact = "enemy_action", Op = "==", Value = "attack_startup" };
+            var op = new RuleOp { Op = "add", Rule = rule };
+
+            var result = RuleValidator.ApplyOps(current, new List<RuleOp> { op });
+
+            Assert.IsTrue(result.Success, string.Join(", ", result.Errors));
+        }
+
+        // #26 Tier2: 신규 action 2종 정상 케이스
+        [TestCase("counter_attack")]
+        [TestCase("feint")]
+        public void ApplyOps_Tier2Action_Valid_Succeeds(string action)
+        {
+            var current = MakeRuleSet(5);
+            var rule = MakeValidRule("rule_01");
+            rule.Do = new RuleAction { Action = action };
+            var op = new RuleOp { Op = "add", Rule = rule };
+
+            var result = RuleValidator.ApplyOps(current, new List<RuleOp> { op });
+
+            Assert.IsTrue(result.Success, string.Join(", ", result.Errors));
+        }
     }
 }

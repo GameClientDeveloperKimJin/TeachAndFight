@@ -15,9 +15,16 @@ namespace TeachAndFight.Combat
         public readonly float TimeLeft;
         public readonly string SelfAction;
 
+        // #26 Tier1
+        public readonly float SelfWallDist;
+        public readonly float SelfActionDuration;
+        public readonly float EnemyActionDuration;
+        public readonly float EnemyWhiffCount;
+
         public FactSnapshot(float selfHpPct, float selfStaminaPct, float selfUltGauge,
             float enemyHpPct, float enemyStaminaPct, float distance,
-            string enemyAction, float timeLeft, string selfAction)
+            string enemyAction, float timeLeft, string selfAction,
+            float selfWallDist, float selfActionDuration, float enemyActionDuration, float enemyWhiffCount)
         {
             SelfHpPct = selfHpPct;
             SelfStaminaPct = selfStaminaPct;
@@ -28,6 +35,10 @@ namespace TeachAndFight.Combat
             EnemyAction = enemyAction;
             TimeLeft = timeLeft;
             SelfAction = selfAction;
+            SelfWallDist = selfWallDist;
+            SelfActionDuration = selfActionDuration;
+            EnemyActionDuration = enemyActionDuration;
+            EnemyWhiffCount = enemyWhiffCount;
         }
 
         public static FactSnapshot Capture(FighterController self, FighterController enemy, float timeLeft)
@@ -35,7 +46,8 @@ namespace TeachAndFight.Combat
             return new FactSnapshot(
                 self.HpPct, self.StaminaPct, self.UltGaugePct,
                 enemy.HpPct, enemy.StaminaPct, self.Distance,
-                enemy.ActionStateLabel, timeLeft, self.ActionStateLabel);
+                enemy.ActionStateLabel, timeLeft, self.ActionStateLabel,
+                self.WallDistance, self.StateElapsed, enemy.StateElapsed, enemy.RecentWhiffCount);
         }
 
         public double GetNumberFact(string fact)
@@ -49,6 +61,10 @@ namespace TeachAndFight.Combat
                 case "enemy_stamina_pct": return EnemyStaminaPct;
                 case "distance": return Distance;
                 case "time_left": return TimeLeft;
+                case "self_wall_dist": return SelfWallDist;
+                case "self_action_duration": return SelfActionDuration;
+                case "enemy_action_duration": return EnemyActionDuration;
+                case "enemy_whiff_count": return EnemyWhiffCount;
                 default:
                     throw new ArgumentException($"숫자 fact 아님: {fact}");
             }

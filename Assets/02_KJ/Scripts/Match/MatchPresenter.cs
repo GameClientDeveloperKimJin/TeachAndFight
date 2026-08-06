@@ -15,6 +15,11 @@ namespace TeachAndFight.Match
         private const float DecisionInterval = 0.1f; // 02장 RuleEvaluator 틱 주기
         private const float BigHitHpPctThreshold = 30f; // 04장 연출: 결정타(HP 30%↑ 또는 궁) 슬로모 기준
 
+        // 유저 피드백: 서로 계속 안 부딪히면(교착) 60초 다 채울 때까지 기다리게 하지 않고 조기 종료.
+        // 3초는 대시 쿨다운(1초)만 돌아도 오탐 나서 15초로 잡음 - 정상 전투의 대시 사이클(수 초)이랑은
+        // 확실히 구분되면서 최악의 대기시간(원래 최대 59초)도 크게 줄임.
+        private const float StalemateAutoConcludeSec = 15f;
+
         private readonly GameSession session;
         private readonly CombatConfig config;
         private readonly FighterController self;
@@ -27,6 +32,7 @@ namespace TeachAndFight.Match
 
         private float matchTimer;
         private float decisionTimer;
+        private float sinceLastHit;
 
         // (발동한 파이터, ruleId, label) - 머리 위 라벨 UI 갱신용.
         public event Action<FighterController, string, string> OnRuleFired;
@@ -37,7 +43,12 @@ namespace TeachAndFight.Match
         // (헛친 파이터) - 공격이 사거리 밖이라 안 맞았을 때 UI 피드백용("헛침!").
         public event Action<FighterController> OnAttackWhiff;
 
+        // 양쪽 어느 쪽이든 타격이 실제로 들어갔을 때 - 교착 상태(서로 안 부딪힘) 감지용.
+        public event Action OnAnyHitLanded;
+
         public event Action<MatchResult> OnConcluded;
+
+        private int hitsLanded;
 
         public FighterController Self => self;
         public FighterController Enemy => enemy;
@@ -68,6 +79,8 @@ namespace TeachAndFight.Match
             self.OnHitTaken += HandleSelfHitTaken;
             self.OnHitTaken += (attacker, dmg, heavy) => CheckBigHit(self, dmg);
             enemy.OnHitTaken += (attacker, dmg, heavy) => CheckBigHit(enemy, dmg);
+            self.OnHitTaken += (attacker, dmg, heavy) => HandleAnyHit();
+            enemy.OnHitTaken += (attacker, dmg, heavy) => HandleAnyHit();
             self.OnWhiff += who => OnAttackWhiff?.Invoke(who);
             enemy.OnWhiff += who => OnAttackWhiff?.Invoke(who);
             self.OnDown += _ => Conclude();
@@ -81,6 +94,7 @@ namespace TeachAndFight.Match
 
             matchTimer -= dt;
             decisionTimer -= dt;
+            sinceLastHit += dt;
 
             if (decisionTimer <= 0f)
             {
@@ -92,7 +106,9 @@ namespace TeachAndFight.Match
             self.Tick(dt);
             enemy.Tick(dt);
 
-            if (!Concluded && matchTimer <= 0f)
+            if (!Concluded && sinceLastHit >= StalemateAutoConcludeSec)
+                Conclude(); // 교착 조기 종료 - HP가 동률(대개 100:100)이라 아래 승패식이 자연스럽게 패배로 처리함
+            else if (!Concluded && matchTimer <= 0f)
                 Conclude();
         }
 
@@ -112,6 +128,13 @@ namespace TeachAndFight.Match
         {
             selfEventLog.Record(config.Match.DurationSec - TimeLeft, "self", "hit",
                 detail: new Dictionary<string, object> { { "by", attacker.ActionStateLabel }, { "dmg", damage } });
+        }
+
+        private void HandleAnyHit()
+        {
+            hitsLanded++;
+            sinceLastHit = 0f;
+            OnAnyHitLanded?.Invoke();
         }
 
         private void CheckBigHit(FighterController victim, float damage)
@@ -139,6 +162,7 @@ namespace TeachAndFight.Match
                 SelfHpPct = self.HpPct,
                 EnemyHpPct = enemy.HpPct,
                 EventLog = selfEventLog.Events.ToList(),
+                HitsLanded = hitsLanded,
             };
             session.LastMatch = Result;
 

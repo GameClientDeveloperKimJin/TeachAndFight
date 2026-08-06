@@ -50,7 +50,10 @@ namespace TeachAndFight.Core.Tests
                     HeavyAttack = new SkillConfig { Damage = 20, Range = 1.5f, Startup = 0.45f, Recovery = 0.50f, WhiffRecovery = 0.90f, Stamina = 25, Cooldown = 0 },
                     Dash = new SkillConfig { Damage = 0, Range = 0, Startup = 0.05f, Recovery = 0.15f, WhiffRecovery = 0, Stamina = 20, Cooldown = 1.0f },
                     Ultimate = new SkillConfig { Damage = 35, Range = 2.0f, Startup = 0.60f, Recovery = 0.70f, WhiffRecovery = 1.20f, Stamina = 0, Cooldown = 0 },
+                    Feint = new SkillConfig { Damage = 0, Range = 0, Startup = 0.15f, Recovery = 0.15f, WhiffRecovery = 0, Stamina = 5, Cooldown = 0 },
+                    CounterAttack = new SkillConfig { Damage = 8, Range = 1.5f, Startup = 0.08f, Recovery = 0.25f, WhiffRecovery = 0.35f, Stamina = 15, Cooldown = 0 },
                 },
+                Counter = new CounterConfig { DamageMultiplier = 1.5f },
             };
         }
 
@@ -310,6 +313,144 @@ namespace TeachAndFight.Core.Tests
             evaluator.Evaluate(self, enemy, timeLeft: 60f, matchTime: 0f);
 
             Assert.AreEqual("only", firedId);
+        }
+
+        // #26 Tier2: RuleEvaluator가 신규 action을 ActionCommand로 정확히 빌드하는지
+        [TestCase("counter_attack", ActionType.CounterAttack)]
+        [TestCase("feint", ActionType.Feint)]
+        public void Evaluate_Tier2Action_BuildsExpectedCommand(string action, ActionType expected)
+        {
+            var ruleSet = new RuleSet
+            {
+                MaxSlots = 5,
+                Rules = new List<Rule> { AttackRule("only", 5, action) },
+            };
+            var evaluator = new RuleEvaluator(ruleSet);
+
+            var cmd = evaluator.Evaluate(self, enemy, timeLeft: 60f, matchTime: 0f);
+
+            Assert.AreEqual(expected, cmd.Action);
+        }
+
+        // #26 Tier1: 신규 fact가 FactSnapshot을 거쳐 조건 평가에 실제로 반영되는지
+        [Test]
+        public void Evaluate_EnemyWhiffCountFact_MatchesAfterEnemyWhiffs()
+        {
+            // enemy(light_attack)가 self 사거리 밖(distance 1.0 < range 1.2라 사실 안 맞음) -> 강제로 멀리 재배치해 헛스윙 유도
+            enemy.TryPerform(ActionCommand.Retreat());
+            for (int i = 0; i < 50; i++) enemy.Tick(0.1f); // self와 거리 벌리기
+            enemy.TryPerform(ActionCommand.Idle());
+
+            Assert.IsTrue(enemy.TryPerform(ActionCommand.LightAttack()));
+            enemy.Tick(config.Skills.LightAttack.Startup + 0.001f); // 사거리 밖 -> 헛스윙
+
+            Assert.AreEqual(1, enemy.RecentWhiffCount);
+
+            var ruleSet = new RuleSet
+            {
+                MaxSlots = 5,
+                Rules = new List<Rule>
+                {
+                    new Rule
+                    {
+                        Id = "punish_whiff",
+                        When = new List<Condition> { new Condition { Fact = "enemy_whiff_count", Op = ">=", Value = 1 } },
+                        Do = new RuleAction { Action = "heavy_attack" },
+                        Priority = 5,
+                    },
+                },
+            };
+            var evaluator = new RuleEvaluator(ruleSet);
+
+            var cmd = evaluator.Evaluate(self, enemy, timeLeft: 60f, matchTime: 0f);
+
+            Assert.AreEqual(ActionType.HeavyAttack, cmd.Action, "enemy_whiff_count fact가 실제 헛스윙 횟수를 반영해야 함");
+        }
+
+        // "공격 준비하면"처럼 light_startup/heavy_startup을 하나로 묶어 쓰기 위한 attack_startup -
+        // 실제 상태값이 아니라 RuleEvaluator의 특수 매칭 값(유저 QA 피드백으로 추가).
+        [Test]
+        public void Evaluate_AttackStartupValue_MatchesLightStartup()
+        {
+            Assert.IsTrue(enemy.TryPerform(ActionCommand.LightAttack()));
+
+            var ruleSet = new RuleSet
+            {
+                MaxSlots = 5,
+                Rules = new List<Rule>
+                {
+                    new Rule
+                    {
+                        Id = "counter",
+                        When = new List<Condition> { new Condition { Fact = "enemy_action", Op = "==", Value = "attack_startup" } },
+                        Do = new RuleAction { Action = "counter_attack" },
+                        Priority = 5,
+                    },
+                },
+            };
+            var evaluator = new RuleEvaluator(ruleSet);
+
+            var cmd = evaluator.Evaluate(self, enemy, timeLeft: 60f, matchTime: 0f);
+
+            Assert.AreEqual(ActionType.CounterAttack, cmd.Action);
+        }
+
+        [Test]
+        public void Evaluate_AttackStartupValue_MatchesHeavyStartup()
+        {
+            Assert.IsTrue(enemy.TryPerform(ActionCommand.HeavyAttack()));
+
+            var ruleSet = new RuleSet
+            {
+                MaxSlots = 5,
+                Rules = new List<Rule>
+                {
+                    new Rule
+                    {
+                        Id = "counter",
+                        When = new List<Condition> { new Condition { Fact = "enemy_action", Op = "==", Value = "attack_startup" } },
+                        Do = new RuleAction { Action = "counter_attack" },
+                        Priority = 5,
+                    },
+                },
+            };
+            var evaluator = new RuleEvaluator(ruleSet);
+
+            var cmd = evaluator.Evaluate(self, enemy, timeLeft: 60f, matchTime: 0f);
+
+            Assert.AreEqual(ActionType.CounterAttack, cmd.Action);
+        }
+
+        [Test]
+        public void Evaluate_AttackStartupValue_DoesNotMatchIdle()
+        {
+            // enemy는 SetUp에서 Idle 상태 - attack_startup 조건은 안 걸리고 폴백(approach)으로 가야 함
+            var ruleSet = new RuleSet
+            {
+                MaxSlots = 5,
+                Rules = new List<Rule>
+                {
+                    new Rule
+                    {
+                        Id = "counter",
+                        When = new List<Condition> { new Condition { Fact = "enemy_action", Op = "==", Value = "attack_startup" } },
+                        Do = new RuleAction { Action = "counter_attack" },
+                        Priority = 8,
+                    },
+                    new Rule
+                    {
+                        Id = "fallback",
+                        When = new List<Condition> { new Condition { Fact = "distance", Op = "<=", Value = 12 } },
+                        Do = new RuleAction { Action = "approach" },
+                        Priority = 3,
+                    },
+                },
+            };
+            var evaluator = new RuleEvaluator(ruleSet);
+
+            var cmd = evaluator.Evaluate(self, enemy, timeLeft: 60f, matchTime: 0f);
+
+            Assert.AreEqual(ActionType.Approach, cmd.Action, "enemy가 idle이면 attack_startup 조건은 안 걸려야 함");
         }
     }
 }

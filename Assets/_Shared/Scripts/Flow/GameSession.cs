@@ -19,8 +19,10 @@ namespace TeachAndFight.Flow
         // 직전 경기 결과. LockerRoom(#15) 회고 입력. 첫 진입 시 null.
         public MatchResult LastMatch;
 
-        // 빈 규칙셋으로 시작(백지 1차전 보장 — #12 완료기준). max_slots 기본 8(01장).
-        public static GameSession NewGame(int opponentIndex = 1, int maxSlots = 8) => new GameSession
+        // 빈 규칙셋으로 시작(백지 1차전 보장 — #12 완료기준).
+        // max_slots 기본 8(01장)이었으나 밸런스 패치로 9로 상향 — 5차전 보스("사범")가 규칙 9개를
+        // 쓰는데 플레이어가 8슬롯으로는 아무리 잘 가르쳐도 그만큼 정교한 전략을 못 짜서 상향(공정성).
+        public static GameSession NewGame(int opponentIndex = 1, int maxSlots = 9) => new GameSession
         {
             OpponentIndex = opponentIndex,
             DiscipleRuleSet = new RuleSet

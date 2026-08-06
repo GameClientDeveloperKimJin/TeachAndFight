@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace TeachAndFight.Combat
@@ -32,6 +33,15 @@ namespace TeachAndFight.Combat
         public float Distance => Opponent == null
             ? 0f
             : Mathf.Abs(transform.position.x - Opponent.transform.position.x);
+
+        // #26 Tier1: 등 뒤 벽까지 거리(코너 압박 판정용)
+        public float WallDistance => arenaHalfWidth - Mathf.Abs(transform.position.x);
+
+        // #26 Tier1: 현재 State 진입 후 경과 시간(초) - EnterState()에서 리셋
+        public float StateElapsed => stateElapsed;
+
+        // #26 Tier1: 최근 WhiffMemorySec초 내 헛스윙 횟수(롤링 윈도우)
+        public int RecentWhiffCount => recentWhiffTimers.Count;
 
         public bool IsDashInvulnerable =>
             State == FighterState.Dash &&
@@ -91,6 +101,9 @@ namespace TeachAndFight.Combat
                 case ActionType.LightAttack: return "light_startup";
                 case ActionType.HeavyAttack: return "heavy_startup";
                 case ActionType.Ultimate: return "ultimate_startup";
+                // #26 Tier2: counter_attack/feint는 light_attack과 구분 안 되게 위장(카운터/페인트 판별 불가가 의도)
+                case ActionType.CounterAttack: return "light_startup";
+                case ActionType.Feint: return "light_startup";
                 default: return "idle";
             }
         }
@@ -110,6 +123,14 @@ namespace TeachAndFight.Combat
         private float moveDir;
         private float keepDistanceRange;
 
+        // #26 Tier1
+        private float stateElapsed;
+        private readonly List<float> recentWhiffTimers = new List<float>();
+        private const float WhiffMemorySec = 5f;
+
+        // #26 Tier2: counter_attack 커밋 시점에 상대가 startup 중이었는지(데미지 보너스 적용 여부)
+        private bool counterBonusActive;
+
         public void Init(CombatConfig config, FighterController opponent, float startX)
         {
             Config = config;
@@ -117,16 +138,25 @@ namespace TeachAndFight.Combat
             Hp = config.Stats.MaxHp;
             Stamina = config.Stats.MaxStamina;
             UltGauge = 0f;
-            State = FighterState.Idle;
             stateTimer = 0f;
             dashCooldownTimer = 0f;
             moveDir = 0f;
             activeMoveAction = ActionType.Idle;
             arenaHalfWidth = config.Arena.Width * 0.5f;
+            recentWhiffTimers.Clear();
 
             var pos = transform.position;
             pos.x = startX;
             transform.position = pos;
+
+            EnterState(FighterState.Idle);
+        }
+
+        // #26 Tier1: State 전이는 항상 이 메서드로 - stateElapsed 리셋을 한 곳에서 보장
+        private void EnterState(FighterState next)
+        {
+            State = next;
+            stateElapsed = 0f;
         }
 
         // 스태미나/쿨다운/게이지 부족 시 false - 호출측(RuleEvaluator)이 다음 규칙으로 폴백
@@ -145,6 +175,10 @@ namespace TeachAndFight.Combat
                     return Stamina >= Config.Skills.HeavyAttack.Stamina;
                 case ActionType.Ultimate:
                     return UltGauge >= MaxUltGauge;
+                case ActionType.CounterAttack:
+                    return Stamina >= Config.Skills.CounterAttack.Stamina;
+                case ActionType.Feint:
+                    return Stamina >= Config.Skills.Feint.Stamina;
                 default:
                     return true; // Idle/Approach/Retreat/KeepDistance는 자원 소모 없음
             }
@@ -158,19 +192,19 @@ namespace TeachAndFight.Combat
             switch (cmd.Action)
             {
                 case ActionType.Idle:
-                    State = FighterState.Idle;
+                    EnterState(FighterState.Idle);
                     activeMoveAction = ActionType.Idle;
                     moveDir = 0f;
                     break;
 
                 case ActionType.Approach:
                 case ActionType.Retreat:
-                    State = FighterState.Move;
+                    EnterState(FighterState.Move);
                     activeMoveAction = cmd.Action;
                     break;
 
                 case ActionType.KeepDistance:
-                    State = FighterState.Move;
+                    EnterState(FighterState.Move);
                     activeMoveAction = ActionType.KeepDistance;
                     keepDistanceRange = cmd.KeepDistanceRange;
                     break;
@@ -179,7 +213,7 @@ namespace TeachAndFight.Combat
                     Stamina -= Config.Skills.Dash.Stamina;
                     dashDirection = cmd.DashDirection;
                     dashCooldownTimer = Config.Skills.Dash.Cooldown;
-                    State = FighterState.Dash;
+                    EnterState(FighterState.Dash);
                     stateTimer = Config.Dash.Duration;
                     break;
 
@@ -195,6 +229,20 @@ namespace TeachAndFight.Combat
                     UltGauge = 0f;
                     BeginAttackStartup(ActionType.Ultimate, Config.Skills.Ultimate);
                     break;
+
+                case ActionType.CounterAttack:
+                    // 커밋 시점에 상대가 startup 중이었으면 보너스 데미지(#26 Tier2). 애니는 light 재사용하되
+                    // 판정(발동속도/사거리)은 전용 설정 - light_attack 그대로 쓰면 반격 타이밍/사거리가 안 나옴(밸런스 패치).
+                    counterBonusActive = Opponent != null && Opponent.State == FighterState.AttackStartup;
+                    BeginAttackStartup(ActionType.CounterAttack, Config.Skills.CounterAttack);
+                    break;
+
+                case ActionType.Feint:
+                    Stamina -= Config.Skills.Feint.Stamina;
+                    committedAction = ActionType.Feint;
+                    EnterState(FighterState.AttackStartup);
+                    stateTimer = Config.Skills.Feint.Startup;
+                    break;
             }
 
             return true;
@@ -206,7 +254,7 @@ namespace TeachAndFight.Combat
                 Stamina -= skill.Stamina;
 
             committedAction = action;
-            State = FighterState.AttackStartup;
+            EnterState(FighterState.AttackStartup);
             stateTimer = skill.Startup;
         }
 
@@ -215,6 +263,8 @@ namespace TeachAndFight.Combat
             if (State == FighterState.Down)
                 return;
 
+            stateElapsed += dt;
+            TickRecentWhiffs(dt);
             RegenStamina(dt);
 
             if (dashCooldownTimer > 0f)
@@ -234,15 +284,31 @@ namespace TeachAndFight.Combat
                 case FighterState.AttackStartup:
                     stateTimer -= dt;
                     if (stateTimer <= 0f)
-                        ResolveAttackActive();
+                    {
+                        if (committedAction == ActionType.Feint)
+                            ResolveFeint();
+                        else
+                            ResolveAttackActive();
+                    }
                     break;
 
                 case FighterState.Recovery:
                 case FighterState.HitStun:
                     stateTimer -= dt;
                     if (stateTimer <= 0f)
-                        State = FighterState.Idle;
+                        EnterState(FighterState.Idle);
                     break;
+            }
+        }
+
+        // #26 Tier1: 롤링 윈도우 - WhiffMemorySec 지난 항목 제거
+        private void TickRecentWhiffs(float dt)
+        {
+            for (int i = recentWhiffTimers.Count - 1; i >= 0; i--)
+            {
+                recentWhiffTimers[i] -= dt;
+                if (recentWhiffTimers[i] <= 0f)
+                    recentWhiffTimers.RemoveAt(i);
             }
         }
 
@@ -256,29 +322,42 @@ namespace TeachAndFight.Combat
             MoveByDir(dashSign, dt, dashSpeed);
 
             if (stateTimer <= 0f)
-                State = FighterState.Idle;
+                EnterState(FighterState.Idle);
+        }
+
+        // #26 Tier2: feint - 데미지 판정 없이 짧은 recovery로 빠져나감(상대 판단 유도용 페이크)
+        private void ResolveFeint()
+        {
+            EnterState(FighterState.Recovery);
+            stateTimer = Config.Skills.Feint.Recovery;
         }
 
         private void ResolveAttackActive()
         {
-            State = FighterState.AttackActive;
+            EnterState(FighterState.AttackActive);
             var skill = GetSkillConfig(committedAction);
             bool isHeavyOrUlt = committedAction == ActionType.HeavyAttack || committedAction == ActionType.Ultimate;
+
+            float damage = skill.Damage;
+            if (committedAction == ActionType.CounterAttack && counterBonusActive)
+                damage *= Config.Counter.DamageMultiplier;
+            counterBonusActive = false;
 
             bool hit = Opponent.State != FighterState.Down && Distance <= skill.Range;
 
             if (hit)
             {
-                UltGauge = Mathf.Min(MaxUltGauge, UltGauge + skill.Damage * Config.Stats.UltGaugePerDamageDealt);
-                OnHitLanded?.Invoke(this, skill.Damage, isHeavyOrUlt);
-                Opponent.ApplyHit(skill.Damage, isHeavyOrUlt, this);
-                State = FighterState.Recovery;
+                UltGauge = Mathf.Min(MaxUltGauge, UltGauge + damage * Config.Stats.UltGaugePerDamageDealt);
+                OnHitLanded?.Invoke(this, damage, isHeavyOrUlt);
+                Opponent.ApplyHit(damage, isHeavyOrUlt, this);
+                EnterState(FighterState.Recovery);
                 stateTimer = skill.Recovery;
             }
             else
             {
+                recentWhiffTimers.Add(WhiffMemorySec);
                 OnWhiff?.Invoke(this);
-                State = FighterState.Recovery;
+                EnterState(FighterState.Recovery);
                 stateTimer = skill.WhiffRecovery;
             }
         }
@@ -304,12 +383,12 @@ namespace TeachAndFight.Combat
 
             if (Hp <= 0f)
             {
-                State = FighterState.Down;
+                EnterState(FighterState.Down);
                 OnDown?.Invoke(this);
                 return;
             }
 
-            State = FighterState.HitStun;
+            EnterState(FighterState.HitStun);
             stateTimer = isHeavyOrUltimate ? Config.HitReaction.HeavyHitStunDuration : Config.HitReaction.HitStunDuration;
         }
 
@@ -320,6 +399,7 @@ namespace TeachAndFight.Combat
                 case ActionType.LightAttack: return Config.Skills.LightAttack;
                 case ActionType.HeavyAttack: return Config.Skills.HeavyAttack;
                 case ActionType.Ultimate: return Config.Skills.Ultimate;
+                case ActionType.CounterAttack: return Config.Skills.CounterAttack;
                 default: return Config.Skills.LightAttack;
             }
         }

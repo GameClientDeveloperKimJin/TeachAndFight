@@ -92,6 +92,52 @@ namespace TeachAndFight.Training.Tests
             Assert.AreEqual("rule_dodge", result.ConflictWith);
         }
 
+        // 유저 요구사항: 가르침 1번 = 규칙 1개. LLM이 OR 의미 문장("약공이나 강공 준비하면")을
+        // add 2개로 쪼개서 보내는 경우가 실사용에서 관측됨 - 프롬프트로도 막았지만(2번 규칙) 최종
+        // 저지선을 코드에도 둔다. 적용하지 않고 하나씩 나눠 가르쳐달라고 되묻어야 한다.
+        [Test]
+        public void MultipleOps_TreatedAsNeedsConfirmation_EvenIfLLMSaysApply()
+        {
+            const string twoAdds =
+                "{\"ops\":[" +
+                "{\"op\":\"add\",\"rule\":{\"id\":\"rule_a\",\"label\":\"약공 반격\"," +
+                "\"when\":[{\"fact\":\"enemy_action\",\"op\":\"==\",\"value\":\"light_startup\"}]," +
+                "\"do\":{\"action\":\"counter_attack\"},\"priority\":8}}," +
+                "{\"op\":\"add\",\"rule\":{\"id\":\"rule_b\",\"label\":\"강공 반격\"," +
+                "\"when\":[{\"fact\":\"enemy_action\",\"op\":\"==\",\"value\":\"heavy_startup\"}]," +
+                "\"do\":{\"action\":\"counter_attack\"},\"priority\":8}}" +
+                "],\"disciple_reply\":\"약공이나 강공 준비하면 반격기 쓸게요!\",\"needs_confirmation\":false,\"conflict_with\":null}";
+            var current = EmptyRuleSet();
+            var result = Run(LLMResult.Ok(twoAdds), current);
+
+            Assert.AreEqual(TrainingOutcome.NeedsConfirmation, result.Outcome);
+            Assert.AreEqual(0, result.ResultingRuleSet.Rules.Count, "규칙 2개가 한 번에 들어가면 안 됨");
+            Assert.AreEqual(0, current.Rules.Count);
+        }
+
+        // 유저 요구사항: "A일 때 B하고 C일 때 D해줘"류 복합 문장은 첫 번째만 적용하고 두 번째는
+        // 대사로 되물어야 함(10번 규칙) - ops 1개 + needs_confirmation=true 조합이 이 케이스.
+        // "여러 상황" 가드(ops.Count>1)에 걸리지 않고 정상 적용돼야 한다.
+        [Test]
+        public void CompoundTeaching_AppliesFirstPart_AsksAboutSecond()
+        {
+            const string compound =
+                "{\"ops\":[{\"op\":\"add\",\"rule\":{\"id\":\"rule_a\",\"label\":\"궁 회피\"," +
+                "\"when\":[{\"fact\":\"enemy_action\",\"op\":\"==\",\"value\":\"ultimate_startup\"}]," +
+                "\"do\":{\"action\":\"dash\",\"params\":{\"direction\":\"away\"}},\"priority\":8}}]," +
+                "\"disciple_reply\":\"상대가 궁 쓰면 대시로 피하도록 배웠습니다! 헛치면 강공으로 처벌하면 되는 건가요?\"," +
+                "\"needs_confirmation\":true,\"conflict_with\":null}";
+            var current = EmptyRuleSet();
+            var result = Run(LLMResult.Ok(compound), current);
+
+            Assert.AreEqual(TrainingOutcome.Applied, result.Outcome, "첫 부분은 적용돼야 함");
+            Assert.AreEqual(1, result.ResultingRuleSet.Rules.Count);
+            Assert.AreEqual("rule_a", result.ResultingRuleSet.Rules[0].Id);
+            StringAssert.Contains("배웠습니다", result.DiscipleReply);
+            StringAssert.Contains("처벌하면 되는 건가요?", result.DiscipleReply, "두 번째 부분은 되묻는 대사로 남아있어야 함");
+            Assert.AreEqual(0, current.Rules.Count, "원본은 불변");
+        }
+
         [Test]
         public void Rejected_LLMSaysApplyButValidatorRefuses()
         {

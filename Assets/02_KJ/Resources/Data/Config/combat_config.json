@@ -30,6 +30,9 @@
     "light_attack": { "damage": 8, "range": 1.2, "startup": 0.15, "recovery": 0.25, "whiffRecovery": 0.35, "stamina": 10, "cooldown": 0 },
     "heavy_attack": { "damage": 20, "range": 1.5, "startup": 0.45, "recovery": 0.50, "whiffRecovery": 0.90, "stamina": 25, "cooldown": 0 },
     "dash": { "damage": 0, "range": 0, "startup": 0.05, "recovery": 0.15, "whiffRecovery": 0, "stamina": 20, "cooldown": 1.0 },
-    "ultimate": { "damage": 35, "range": 2.0, "startup": 0.60, "recovery": 0.70, "whiffRecovery": 1.20, "stamina": 0, "cooldown": 0 }
-  }
+    "ultimate": { "damage": 35, "range": 2.0, "startup": 0.60, "recovery": 0.70, "whiffRecovery": 1.20, "stamina": 0, "cooldown": 0 },
+    "feint": { "damage": 0, "range": 0, "startup": 0.15, "recovery": 0.15, "whiffRecovery": 0, "stamina": 5, "cooldown": 0 },
+    "counter_attack": { "damage": 8, "range": 1.5, "startup": 0.08, "recovery": 0.25, "whiffRecovery": 0.35, "stamina": 15, "cooldown": 0 }
+  },
+  "counter": { "damageMultiplier": 1.5 }
 }

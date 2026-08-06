@@ -119,5 +119,36 @@ namespace TeachAndFight.Core.Tests
             Assert.IsFalse(presenter.Result.Won, "백지 규칙셋 제자는 러쉬에게 패배해야 함(#12 완료기준과 동일 전제)");
             Assert.AreSame(presenter.Result, session.LastMatch, "종료 시 session.LastMatch에 결과가 담겨야 함(LockerRoom 접점 계약)");
         }
+
+        // 유저 요구사항: 교착 상태면 60초 다 안 기다리고 조기 종료(패배 처리)돼야 함.
+        [Test]
+        public void Stalemate_NoHitsForThreshold_ConcludesEarlyAsLoss()
+        {
+            // 둘 다 규칙 없음(Idle만) - 영원히 안 부딪히는 순수 교착 시나리오.
+            var disciple = new RuleSet { Version = 1, FighterName = "제자", MaxSlots = 8, Rules = new List<Rule>() };
+            var opponent = new RuleSet { Version = 1, FighterName = "상대", MaxSlots = 8, Rules = new List<Rule>() };
+            var session = new GameSession { DiscipleRuleSet = disciple, CurrentOpponent = opponent, OpponentIndex = 1 };
+
+            float half = config.Arena.StartDistance * 0.5f;
+            self.Init(config, enemy, -half);
+            enemy.Init(config, self, half);
+
+            var presenter = new MatchPresenter(session, config, self, enemy);
+
+            const float dt = 0.1f;
+            int steps = 0;
+            while (!presenter.Concluded && steps < 200) // 20초치 - 15초 근방에서 끝나야 함
+            {
+                presenter.Step(dt);
+                steps++;
+            }
+
+            float elapsed = steps * dt;
+            Assert.IsTrue(presenter.Concluded, "교착이면 60초 끝까지 안 가고 조기 종료돼야 함");
+            Assert.Less(elapsed, 20f, "15초 임계값보다 한참 늦게 끝나면 조기종료가 동작 안 한 것");
+            Assert.GreaterOrEqual(elapsed, 15f, "15초보다 일찍 끝나면 임계값이 잘못 걸린 것");
+            Assert.IsFalse(presenter.Result.Won, "HP 동률(100:100)이라 패배로 처리돼야 함");
+            Assert.AreEqual(0, presenter.Result.HitsLanded);
+        }
     }
 }

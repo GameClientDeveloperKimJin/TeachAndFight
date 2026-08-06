@@ -38,7 +38,17 @@ namespace TeachAndFight.LockerRoom
             if (statsText != null) statsText.text = BuildStatsText();
 
             if (toTrainingButton != null) toTrainingButton.onClick.AddListener(OnToTraining);
-            if (rematchButton != null) rematchButton.onClick.AddListener(OnRematch);
+            if (rematchButton != null)
+            {
+                rematchButton.onClick.AddListener(OnRematch);
+                // 승리 + 다음 상대가 남아있으면 "재대결" 버튼을 "다음 상대로"로 바꿔서 재사용
+                // (씬에 새 버튼을 안 만들어도 되게 - 새 버튼은 씬 파일 수동 배선이 필요해서 위험함).
+                if (_presenter.HasNextOpponent)
+                {
+                    var label = rematchButton.GetComponentInChildren<Text>();
+                    if (label != null) label.text = "다음 상대로";
+                }
+            }
 
             RunRecap().Forget();
         }
@@ -58,6 +68,11 @@ namespace TeachAndFight.LockerRoom
 
         private string BuildStatsText()
         {
+            // 교착으로 조기 종료된 판은 발동 규칙 통계(대부분 접근/후퇴 스팸)보다
+            // 원인 피드백이 더 유용해서 그걸로 대체한다.
+            if (_presenter.WasStalemate)
+                return _presenter.StalemateFeedback;
+
             var top = _presenter.TopFiredRules(3);
             if (top.Count == 0)
                 return "발동한 규칙 없음";
@@ -65,6 +80,19 @@ namespace TeachAndFight.LockerRoom
         }
 
         private void OnToTraining() => GameFlow.EnsureExists().GoToTraining();
-        private void OnRematch() => GameFlow.EnsureExists().GoToMatch();
+
+        // 원래 승리해도 계속 opponent_01만 재대결됐던 버그(OpponentIndex를 어디서도 안 올림) -
+        // 다음 상대가 있으면 이 버튼이 그 진행을 맡고, 없으면(패배/이미 마지막 상대) 원래대로 같은 상대 재대결.
+        private void OnRematch()
+        {
+            if (_presenter.HasNextOpponent)
+            {
+                _presenter.AdvanceToNextOpponent();
+                GameFlow.EnsureExists().GoToTraining(); // 다음 상대 위해 규칙 다듬을 시간을 줌
+                return;
+            }
+
+            GameFlow.EnsureExists().GoToMatch();
+        }
     }
 }

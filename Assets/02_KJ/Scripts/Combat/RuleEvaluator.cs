@@ -48,6 +48,17 @@ namespace TeachAndFight.Combat
             return ActionCommand.Idle();
         }
 
+        // "공격 준비하면"처럼 light_startup/heavy_startup 둘 다를 뜻하는 문장을 규칙 1개로 쓸 수
+        // 있게(#26 후속 - "학습 1개=규칙 1개" 요구사항과 어휘 부족이 충돌해서 추가) attack_startup은
+        // 실제 상태값이 아니라 이 두 값을 아우르는 포괄 매칭 전용 값이다(궁은 제외 - 보통 회피가 별도
+        // 규칙이라 궁까지 묶으면 오히려 위험한 상황에 반격기를 쓰게 될 수 있음).
+        private static bool MatchesActionState(string actual, string expected)
+        {
+            if (expected == "attack_startup")
+                return actual == "light_startup" || actual == "heavy_startup";
+            return actual == expected;
+        }
+
         private static bool MatchesConditions(List<Condition> conditions, FactSnapshot facts)
         {
             foreach (var cond in conditions)
@@ -62,7 +73,8 @@ namespace TeachAndFight.Combat
             {
                 string actual = facts.GetStringFact(cond.Fact);
                 string expected = cond.Value?.ToString();
-                return cond.Op == "==" ? actual == expected : actual != expected;
+                bool matches = MatchesActionState(actual, expected);
+                return cond.Op == "==" ? matches : !matches;
             }
 
             double actual2 = facts.GetNumberFact(cond.Fact);
@@ -110,6 +122,12 @@ namespace TeachAndFight.Combat
                     return true;
                 case "ultimate":
                     cmd = ActionCommand.Ultimate();
+                    return true;
+                case "counter_attack":
+                    cmd = ActionCommand.CounterAttack();
+                    return true;
+                case "feint":
+                    cmd = ActionCommand.Feint();
                     return true;
                 default:
                     cmd = default;
