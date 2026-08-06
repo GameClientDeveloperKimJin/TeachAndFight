@@ -40,6 +40,7 @@ namespace TeachAndFight.LockerRoom.Tests
             Won = false,
             SelfHpPct = 0,
             EnemyHpPct = 40,
+            HitsLanded = 2, // 교착 상태(WasStalemate) 오판 방지 - 이 헬퍼는 "제대로 붙어서 짐" 시나리오
             EventLog = new List<MatchEvent>
             {
                 new MatchEvent { Time = 1, Type = "rule_fired", RuleId = "rule_dodge" },
@@ -129,6 +130,177 @@ namespace TeachAndFight.LockerRoom.Tests
             Assert.AreEqual("rule_dodge", p.TopFiredRules(3)[0].RuleId);
         }
 
+        // 승리 -> 다음 상대 진행 배선이 원래 통째로 빠져있었음(OpponentIndex를 어디서도 증가
+        // 안 시켜서 이겨도 계속 같은 상대만 재대결됨). 이 3개 테스트가 그 회귀를 잡는다.
+        private static GameSession WonSession(int opponentIndex) => new GameSession
+        {
+            OpponentIndex = opponentIndex,
+            DiscipleRuleSet = Rules(),
+            LastMatch = new MatchResult { Won = true, SelfHpPct = 60, EnemyHpPct = 0, EventLog = new List<MatchEvent>() },
+        };
+
+        [Test]
+        public void HasNextOpponent_TrueWhenWonAndBelowMaxIndex()
+        {
+            var p = new LockerRoomPresenter(WonSession(1), new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+            Assert.IsTrue(p.HasNextOpponent);
+            Assert.IsFalse(p.IsGameCleared);
+        }
+
+        [Test]
+        public void HasNextOpponent_FalseWhenLost()
+        {
+            var p = new LockerRoomPresenter(Session(), new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}"))); // Session()은 Won=false
+            Assert.IsFalse(p.HasNextOpponent);
+        }
+
+        [Test]
+        public void IsGameCleared_TrueWhenWonAtMaxIndex()
+        {
+            var session = WonSession(OpponentRuleSetLoader.MaxIndex);
+            var p = new LockerRoomPresenter(session, new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            Assert.IsTrue(p.IsGameCleared);
+            Assert.IsFalse(p.HasNextOpponent);
+            Assert.AreEqual("우승! 모든 상대를 이겼습니다", p.ResultBanner);
+        }
+
+        [Test]
+        public void AdvanceToNextOpponent_IncrementsIndex_AndClearsStaleOpponent()
+        {
+            var session = WonSession(1);
+            session.CurrentOpponent = Rules(); // 이전 상대 정보(더미) - 넘어가면 비워져야 함
+            var p = new LockerRoomPresenter(session, new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            p.AdvanceToNextOpponent();
+
+            Assert.AreEqual(2, session.OpponentIndex);
+            Assert.IsNull(session.CurrentOpponent);
+        }
+
+        [Test]
+        public void AdvanceToNextOpponent_NoOpWhenNoNextOpponent()
+        {
+            var session = WonSession(OpponentRuleSetLoader.MaxIndex);
+            var p = new LockerRoomPresenter(session, new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            p.AdvanceToNextOpponent();
+
+            Assert.AreEqual(OpponentRuleSetLoader.MaxIndex, session.OpponentIndex, "마지막 상대에서는 더 진행하면 안 됨");
+        }
+
+        // 유저 피드백: 도망형 상대한테 접근만 시켜서 안 부딪히고 지면 그냥 "패배..."로만 뜨는 게
+        // 아니라 원인이 뭔지(교착 상태) 구분해서 알려줘야 함. 이 4개가 그 회귀를 잡는다.
+        [Test]
+        public void WasStalemate_TrueWhenLostWithNoEngagement()
+        {
+            var session = new GameSession
+            {
+                OpponentIndex = 2,
+                DiscipleRuleSet = Rules(),
+                LastMatch = new MatchResult { Won = false, SelfHpPct = 100, EnemyHpPct = 100, HitsLanded = 0, EventLog = new List<MatchEvent>() },
+            };
+            var p = new LockerRoomPresenter(session, new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            Assert.IsTrue(p.WasStalemate);
+            Assert.AreEqual("교착 상태로 조기 종료 - 패배 처리됐어요", p.ResultBanner);
+        }
+
+        [Test]
+        public void WasStalemate_FalseWhenLostButActuallyEngaged()
+        {
+            // Match() 헬퍼는 HitsLanded=2(제대로 붙어서 짐) - 기존 "패배..." 배너 그대로 나와야 함.
+            var p = new LockerRoomPresenter(Session(), new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            Assert.IsFalse(p.WasStalemate);
+            Assert.AreEqual("패배...", p.ResultBanner);
+        }
+
+        [Test]
+        public void WasStalemate_FalseWhenWon_EvenWithLowHitCount()
+        {
+            // 견제/시간끌기로 이기는 것도 정식 공략(05장) - 이겼으면 HitsLanded 적어도 교착 취급 안 함.
+            var session = WonSession(1);
+            session.LastMatch.HitsLanded = 0;
+            var p = new LockerRoomPresenter(session, new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            Assert.IsFalse(p.WasStalemate);
+        }
+
+        // 유저 요구사항: 교착 원인을 규칙셋 기반으로 구체적으로 짚어줌(사범전 dash-only 폴백 누락이
+        // 실제 계기였음). 3가지 규칙셋 패턴별로 다른 메시지가 나와야 한다.
+        private static GameSession StalemateSession(List<Rule> rules) => new GameSession
+        {
+            OpponentIndex = 5,
+            DiscipleRuleSet = new RuleSet { Version = 1, FighterName = "제자", MaxSlots = 9, Rules = rules },
+            LastMatch = new MatchResult { Won = false, SelfHpPct = 100, EnemyHpPct = 100, HitsLanded = 0, EventLog = new List<MatchEvent>() },
+        };
+
+        [Test]
+        public void StalemateFeedback_Null_WhenNotStalemate()
+        {
+            var p = new LockerRoomPresenter(Session(), new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+            Assert.IsNull(p.StalemateFeedback);
+        }
+
+        [Test]
+        public void StalemateFeedback_NoApproachAtAll_SaysMissingClosingRule()
+        {
+            var rules = new List<Rule>
+            {
+                new Rule { Id = "r1", Label = "쉬기", Priority = 5, When = new List<Condition>(), Do = new RuleAction { Action = "idle" } },
+            };
+            var p = new LockerRoomPresenter(StalemateSession(rules), new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            StringAssert.Contains("다가가는 규칙이 아예 없어요", p.StalemateFeedback);
+        }
+
+        [Test]
+        public void StalemateFeedback_DashOnlyNoWalkFallback_SaysDashCooldownGap()
+        {
+            // 사범전 실제 상황 재현: dash(toward)만 있고 approach 폴백이 없음.
+            var rules = new List<Rule>
+            {
+                new Rule
+                {
+                    Id = "r1", Label = "대시로 접근", Priority = 6, When = new List<Condition>(),
+                    Do = new RuleAction { Action = "dash", Params = new Dictionary<string, object> { { "direction", "toward" } } },
+                },
+            };
+            var p = new LockerRoomPresenter(StalemateSession(rules), new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            StringAssert.Contains("대시로 다가가는 규칙만 있어요", p.StalemateFeedback);
+        }
+
+        [Test]
+        public void StalemateFeedback_DashAwayOnly_CountsAsNoClosingRule()
+        {
+            // dash(away)는 회피용이라 접근 수단으로 안 침 - "다가가는 규칙 없음" 취급돼야 함.
+            var rules = new List<Rule>
+            {
+                new Rule
+                {
+                    Id = "r1", Label = "궁 회피", Priority = 9, When = new List<Condition>(),
+                    Do = new RuleAction { Action = "dash", Params = new Dictionary<string, object> { { "direction", "away" } } },
+                },
+            };
+            var p = new LockerRoomPresenter(StalemateSession(rules), new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            StringAssert.Contains("다가가는 규칙이 아예 없어요", p.StalemateFeedback);
+        }
+
+        [Test]
+        public void StalemateFeedback_HasApproach_SaysOpponentMightBeFleeing()
+        {
+            var rules = new List<Rule>
+            {
+                new Rule { Id = "r1", Label = "접근", Priority = 5, When = new List<Condition>(), Do = new RuleAction { Action = "approach" } },
+            };
+            var p = new LockerRoomPresenter(StalemateSession(rules), new FakeLLMClient(LLMResult.Ok("{\"recap\":\"x\"}")));
+
+            StringAssert.Contains("도망 다니는 타입일 수 있어요", p.StalemateFeedback);
+        }
+
         [Test]
         public void SampleMatch_InjectsOnlyWhenEmpty()
         {
@@ -141,6 +313,7 @@ namespace TeachAndFight.LockerRoom.Tests
             SampleMatch.EnsureForStandalone(session);
             Assert.IsNotNull(session.LastMatch);
             Assert.Greater(session.DiscipleRuleSet.Rules.Count, 0);
+            Assert.Greater(session.LastMatch.HitsLanded, 1, "데모 데이터는 실제로 크게 맞고 진 시나리오 - 교착 상태로 오판되면 안 됨");
 
             // 이미 결과가 있으면 덮어쓰지 않음
             var existing = Match();

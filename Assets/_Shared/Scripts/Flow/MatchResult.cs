@@ -13,6 +13,10 @@ namespace TeachAndFight.Flow
         public float SelfHpPct;
         public float EnemyHpPct;
 
+        // 양쪽 통틀어 실제로 맞은 타격 수(교착 상태 감지용, LockerRoom에서 사용). 필드 추가만이라
+        // 기존 소비 코드엔 영향 없음.
+        public int HitsLanded;
+
         // 02장 EventLog 이벤트 목록 (#8 산출물). rule_fired 빈도/피격 직전 상태 요약에 사용.
         public List<MatchEvent> EventLog = new List<MatchEvent>();
     }

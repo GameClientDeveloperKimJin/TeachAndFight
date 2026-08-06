@@ -73,6 +73,10 @@ namespace TeachAndFight.Training.UI
 
             var result = await _presenter.TeachAsync(coachInput, this.GetCancellationTokenOnDestroy());
 
+            // 진단용: Applied/NeedsConfirmation/Rejected/Failed 구분이 로그에 안 남아서
+            // "왜 슬롯이 안 늘었나" 재현할 때 Rejected(RuleValidator)만 보이고 나머지는 안 보였음. 임시 아님 - 계속 남겨둠.
+            Debug.Log($"[Training] Outcome={result.Outcome} slotsChanged={result.SlotsChanged} conflict={result.ConflictWith} reply={result.DiscipleReply}");
+
             // 빈 입력은 위에서 걸러지므로 Ignored는 사실상 안 옴 — 방어적으로만 처리.
             if (!result.Ignored)
             {
@@ -81,7 +85,10 @@ namespace TeachAndFight.Training.UI
 
                 // Applied일 때만 슬롯이 바뀌므로 그때만 다시 그림(04장: needs_confirmation은 슬롯 변화 없음).
                 if (result.SlotsChanged)
+                {
                     RefreshSlots();
+                    chatLog?.TrimOnRuleApplied(); // 버그 리포트: 규칙 반영되면 대화 정리해서 안 쌓이게
+                }
             }
 
             SetBusy(false);

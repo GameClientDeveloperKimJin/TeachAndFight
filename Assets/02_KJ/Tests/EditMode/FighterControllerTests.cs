@@ -46,7 +46,10 @@ namespace TeachAndFight.Core.Tests
                     HeavyAttack = new SkillConfig { Damage = 20, Range = 1.5f, Startup = 0.45f, Recovery = 0.50f, WhiffRecovery = 0.90f, Stamina = 25, Cooldown = 0 },
                     Dash = new SkillConfig { Damage = 0, Range = 0, Startup = 0.05f, Recovery = 0.15f, WhiffRecovery = 0, Stamina = 20, Cooldown = 1.0f },
                     Ultimate = new SkillConfig { Damage = 35, Range = 2.0f, Startup = 0.60f, Recovery = 0.70f, WhiffRecovery = 1.20f, Stamina = 0, Cooldown = 0 },
+                    Feint = new SkillConfig { Damage = 0, Range = 0, Startup = 0.15f, Recovery = 0.15f, WhiffRecovery = 0, Stamina = 5, Cooldown = 0 },
+                    CounterAttack = new SkillConfig { Damage = 8, Range = 1.5f, Startup = 0.08f, Recovery = 0.25f, WhiffRecovery = 0.35f, Stamina = 15, Cooldown = 0 },
                 },
+                Counter = new CounterConfig { DamageMultiplier = 1.5f },
             };
         }
 
@@ -135,6 +138,62 @@ namespace TeachAndFight.Core.Tests
 
             Object.DestroyImmediate(x.gameObject);
             Object.DestroyImmediate(y.gameObject);
+        }
+
+        // #26 Tier2: feint
+        [Test]
+        public void Feint_DisguisedAsLightStartup_DealsNoDamageAndRecoversFast()
+        {
+            float staminaBefore = a.Stamina;
+
+            Assert.IsTrue(a.TryPerform(ActionCommand.Feint()));
+            Assert.AreEqual(FighterState.AttackStartup, a.State);
+            Assert.AreEqual("light_startup", a.ActionStateLabel, "feint는 light_attack과 구분 안 되게 위장해야 함");
+            Assert.AreEqual(staminaBefore - config.Skills.Feint.Stamina, a.Stamina);
+
+            a.Tick(config.Skills.Feint.Startup + 0.001f);
+
+            Assert.AreEqual(FighterState.Recovery, a.State);
+            Assert.AreEqual(100f, b.Hp, "feint는 데미지가 없어야 함");
+
+            a.Tick(config.Skills.Feint.Recovery + 0.001f);
+            Assert.AreEqual(FighterState.Idle, a.State);
+        }
+
+        // #26 Tier2: counter_attack
+        [Test]
+        public void CounterAttack_WhenOpponentInStartup_DealsBonusDamage()
+        {
+            MoveIntoLightRange();
+
+            b.TryPerform(ActionCommand.LightAttack()); // b를 startup 상태로 - a의 카운터 보너스 조건
+            Assert.AreEqual(FighterState.AttackStartup, b.State);
+
+            Assert.IsTrue(a.TryPerform(ActionCommand.CounterAttack()));
+            a.Tick(config.Skills.CounterAttack.Startup + 0.001f);
+
+            float expected = 100f - config.Skills.CounterAttack.Damage * config.Counter.DamageMultiplier;
+            Assert.AreEqual(expected, b.Hp, 0.01f);
+        }
+
+        [Test]
+        public void CounterAttack_WhenOpponentNotInStartup_DealsNormalDamage()
+        {
+            MoveIntoLightRange();
+
+            Assert.IsTrue(a.TryPerform(ActionCommand.CounterAttack())); // b는 Idle - 보너스 없음
+            a.Tick(config.Skills.CounterAttack.Startup + 0.001f);
+
+            Assert.AreEqual(100f - config.Skills.CounterAttack.Damage, b.Hp, 0.01f);
+        }
+
+        // light_attack 사거리(1.2)까지만 접근 - counter_attack 사거리(1.5)가 더 넓어 안에 포함됨
+        private void MoveIntoLightRange()
+        {
+            a.TryPerform(ActionCommand.Approach());
+            for (int i = 0; i < 200 && a.Distance > config.Skills.LightAttack.Range; i++)
+                a.Tick(0.1f);
+            a.TryPerform(ActionCommand.Idle());
         }
     }
 }

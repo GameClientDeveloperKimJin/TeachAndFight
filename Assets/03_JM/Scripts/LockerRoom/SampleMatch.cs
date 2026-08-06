@@ -40,6 +40,8 @@ namespace TeachAndFight.LockerRoom
             Won = false,
             SelfHpPct = 0f,
             EnemyHpPct = 45f,
+            // 아래 EventLog상 실제 피격 2회(강공+궁) - 안 채우면 기본값 0이라 "교착 상태"로 오판됨.
+            HitsLanded = 2,
             EventLog = new List<MatchEvent>
             {
                 new MatchEvent { Time = 2.1f,  Actor = "self", Type = "rule_fired", RuleId = "rule_close" },

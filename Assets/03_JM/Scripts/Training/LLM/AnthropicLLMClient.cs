@@ -23,13 +23,21 @@ namespace TeachAndFight.Training.LLM
 
         private static string ReadLocalKeyFile()
         {
+            var path = Path.Combine(Application.dataPath, "..", LLMSettings.LocalKeyFilePath);
             try
             {
-                var path = Path.Combine(Application.dataPath, "..", LLMSettings.LocalKeyFilePath);
-                return File.Exists(path) ? File.ReadAllText(path).Trim() : null;
+                bool exists = File.Exists(path);
+                Debug.Log($"[LLM] 키 파일 진단: path={path} exists={exists}");
+                if (!exists)
+                    return null;
+
+                var content = File.ReadAllText(path).Trim();
+                Debug.Log($"[LLM] 키 파일 진단: 읽은 길이={content.Length}");
+                return content;
             }
-            catch
+            catch (Exception e)
             {
+                Debug.LogWarning($"[LLM] 키 파일 읽기 실패: path={path} error={e.Message}");
                 return null;
             }
         }
