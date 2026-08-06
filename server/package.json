@@ -1,0 +1,10 @@
+{
+  "name": "teachandfight-llm-proxy",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "TEACH & FIGHT LLM API 키 보호용 프록시 서버 (Vercel Serverless).",
+  "engines": {
+    "node": ">=18"
+  }
+}

@@ -31,7 +31,8 @@ namespace TeachAndFight.LockerRoom
             var session = GameFlow.EnsureExists().Session;
             SampleMatch.EnsureForStandalone(session); // 실제 경기 결과가 있으면 건너뜀
 
-            _presenter = new LockerRoomPresenter(session, new AnthropicLLMClient());
+            // 클라이언트 생성은 팩토리에 위임: 빌드=프록시 서버(키 미포함), 에디터=로컬 키 직접 호출.
+            _presenter = new LockerRoomPresenter(session, LLMClientFactory.CreateDefault());
 
             if (resultBanner != null) resultBanner.text = _presenter.ResultBanner;
             if (hpText != null) hpText.text = $"내 HP {_presenter.SelfHpPct:0}% · 상대 HP {_presenter.EnemyHpPct:0}%";

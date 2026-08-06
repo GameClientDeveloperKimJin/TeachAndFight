@@ -30,7 +30,8 @@ namespace TeachAndFight.Training.UI
             var session = GameFlow.EnsureExists().Session;
 
             // LLM은 훈련 컴파일에서만 호출(전투 루프엔 안 들어감). 키 없으면 폴백 경로로 동작.
-            var compiler = new TrainingCompiler(new AnthropicLLMClient());
+            // 클라이언트 생성은 팩토리에 위임: 빌드=프록시 서버(키 미포함), 에디터=로컬 키 직접 호출.
+            var compiler = new TrainingCompiler(LLMClientFactory.CreateDefault());
             _presenter = new TrainingPresenter(session, compiler);
 
             if (teachButton != null) teachButton.onClick.AddListener(OnTeachClicked);

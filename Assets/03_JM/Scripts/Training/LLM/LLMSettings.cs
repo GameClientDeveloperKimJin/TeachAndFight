@@ -11,6 +11,19 @@ namespace TeachAndFight.Training.LLM
         // 프로젝트 루트(Assets 상위) 기준 경로, .gitignore에 등록되어 있어 커밋되지 않는다.
         public const string LocalKeyFilePath = ".secrets/anthropic_api_key.txt";
 
+        // 배포용 프록시 서버 엔드포인트. 팀이 Vercel(server/ 폴더)로 배포한 뒤 이 URL만 실제 주소로 교체한다.
+        // 클라이언트 빌드에는 API 키가 없고, 이 프록시 서버가 서버 환경변수의 키로 LLM을 대신 호출한다.
+        // 자리표시자(Placeholder)가 남아있으면 "미배포"로 간주해 폴백 대사만 나온다.
+        public const string ProxyEndpoint = "https://teachandfight.vercel.app/api/compile";
+        private const string ProxyPlaceholderMark = "REPLACE-ME";
+
+        // 주어진 URL이 실제 배포 주소인지(자리표시자가 아닌지) 판정.
+        public static bool IsProxyEndpoint(string url)
+            => !string.IsNullOrWhiteSpace(url) && !url.Contains(ProxyPlaceholderMark);
+
+        // 기본 ProxyEndpoint가 실제 배포 주소로 교체되었는지.
+        public static bool ProxyConfigured => IsProxyEndpoint(ProxyEndpoint);
+
         // Haiku 계열 확정 (03장). 모델 교체는 이 상수만 수정.
         public const string Model = "claude-haiku-4-5";
 
