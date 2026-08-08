@@ -1428,6 +1428,17 @@ MonoBehaviour:
   speedTwoButton: {fileID: 1632437293}
   resultBannerRoot: {fileID: 120771552}
   resultBannerText: {fileID: 976581283}
+  discipleController: {fileID: 9100000, guid: c37cb69aae4f3fd4c93beb4b01b55504, type: 2}
+  opponentControllers:
+  - {fileID: 9100000, guid: 1bf484e6b84bb324e89eea87121be7ae, type: 2}
+  - {fileID: 9100000, guid: b6ad7377f47953d4e8c3df671ba2c99b, type: 2}
+  - {fileID: 9100000, guid: 90c427180acd8614bbb47aca479111d2, type: 2}
+  - {fileID: 9100000, guid: 7e0e6fc91b115ec40bd465b8cc1241fb, type: 2}
+  - {fileID: 9100000, guid: b37a70ce0bba0b54f9d297838784f340, type: 2}
+  characterScale: 0.5
+  characterSortingOrder: 0
+  backgroundSprite: {fileID: 21300000, guid: 2f20e7d814da4ba992f16c3aad9e3f3c, type: 3}
+  backgroundSortingOrder: -10
 --- !u!4 &834825569
 Transform:
   m_ObjectHideFlags: 0

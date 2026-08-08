@@ -16,6 +16,7 @@ namespace TeachAndFight.Training.EditorTools
     {
         private const string CharactersDir = "Assets/_Shared/Art/Characters";
         private const string ScenePath = "Assets/_Shared/Art/_Preview/BridgeBattlePreview.unity";
+        private const string ArenaBackgroundPath = "Assets/_Shared/Art/Backgrounds/TournamentArena_16x9.png";
 
         [MenuItem("TeachAndFight/Build/Create Bridge Battle Preview (character switch)")]
         public static void Build()
@@ -40,6 +41,7 @@ namespace TeachAndFight.Training.EditorTools
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.backgroundColor = new Color(0.13f, 0.14f, 0.18f);
             cam.transform.position = new Vector3(0f, 1.2f, -10f);
+            BuildArenaBackground();
 
             // 기본 파이터: 목록 첫 두 캐릭터(Play에서 셀렉터로 교체 가능).
             string defaultA = chars[0];
@@ -124,6 +126,58 @@ namespace TeachAndFight.Training.EditorTools
         private static Sprite LoadIdle(string character)
             => AssetDatabase.LoadAssetAtPath<Sprite>(
                 $"{CharactersDir}/{character}/Idle/{character.ToLowerInvariant()}_idle_01.png");
+
+        private static void BuildArenaBackground()
+        {
+            EnsureSpriteImport(ArenaBackgroundPath);
+
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(ArenaBackgroundPath);
+            if (sprite == null)
+            {
+                Debug.LogError($"[BridgeBattle] Arena background sprite not found: {ArenaBackgroundPath}");
+                return;
+            }
+
+            var go = new GameObject("TournamentArenaBackground", typeof(SpriteRenderer));
+            go.transform.position = new Vector3(0f, 1.2f, 6f);
+
+            var renderer = go.GetComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = -100;
+
+            var worldHeight = sprite.bounds.size.y;
+            if (worldHeight > 0f)
+            {
+                var scale = 8f / worldHeight;
+                go.transform.localScale = new Vector3(scale, scale, 1f);
+            }
+        }
+
+        private static void EnsureSpriteImport(string assetPath)
+        {
+            var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+            if (importer == null)
+                return;
+
+            var changed = false;
+            if (importer.textureType != TextureImporterType.Sprite)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                changed = true;
+            }
+            if (importer.spriteImportMode != SpriteImportMode.Single)
+            {
+                importer.spriteImportMode = SpriteImportMode.Single;
+                changed = true;
+            }
+            if (!Mathf.Approximately(importer.spritePixelsPerUnit, 100f))
+            {
+                importer.spritePixelsPerUnit = 100f;
+                changed = true;
+            }
+            if (changed)
+                importer.SaveAndReimport();
+        }
 
         private static void EnsureFolder(string assetPath)
         {

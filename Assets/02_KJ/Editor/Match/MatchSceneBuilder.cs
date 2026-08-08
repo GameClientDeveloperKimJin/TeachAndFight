@@ -15,6 +15,7 @@ namespace TeachAndFight.Match.EditorTools
     {
         private const string ScenesDir = "Assets/01_Scenes";
         private const string ScenePath = ScenesDir + "/Match.unity";
+        private const string ArenaBackgroundPath = "Assets/_Shared/Art/Backgrounds/TournamentArena_16x9.png";
 
         private static Font UIFont => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         private static readonly Color Panel = new Color(0.16f, 0.17f, 0.20f, 0.9f);
@@ -36,6 +37,8 @@ namespace TeachAndFight.Match.EditorTools
             cam.orthographic = true;
             cam.orthographicSize = 4.5f;
             cam.transform.position = new Vector3(0, 1f, -10f);
+
+            BuildArenaBackground();
 
             new GameObject("EventSystem", typeof(EventSystem), typeof(InputSystemUIInputModule));
 
@@ -246,6 +249,58 @@ namespace TeachAndFight.Match.EditorTools
             }
             prop.objectReferenceValue = value;
             so.ApplyModifiedPropertiesWithoutUndo();
+        }
+
+        private static void BuildArenaBackground()
+        {
+            EnsureSpriteImport(ArenaBackgroundPath);
+
+            var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(ArenaBackgroundPath);
+            if (sprite == null)
+            {
+                Debug.LogError($"[MatchSceneBuilder] Arena background sprite not found: {ArenaBackgroundPath}");
+                return;
+            }
+
+            var go = new GameObject("TournamentArenaBackground", typeof(SpriteRenderer));
+            go.transform.position = new Vector3(0f, 1f, 6f);
+
+            var renderer = go.GetComponent<SpriteRenderer>();
+            renderer.sprite = sprite;
+            renderer.sortingOrder = -100;
+
+            var worldHeight = sprite.bounds.size.y;
+            if (worldHeight > 0f)
+            {
+                var scale = 9f / worldHeight;
+                go.transform.localScale = new Vector3(scale, scale, 1f);
+            }
+        }
+
+        private static void EnsureSpriteImport(string assetPath)
+        {
+            var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+            if (importer == null)
+                return;
+
+            var changed = false;
+            if (importer.textureType != TextureImporterType.Sprite)
+            {
+                importer.textureType = TextureImporterType.Sprite;
+                changed = true;
+            }
+            if (importer.spriteImportMode != SpriteImportMode.Single)
+            {
+                importer.spriteImportMode = SpriteImportMode.Single;
+                changed = true;
+            }
+            if (!Mathf.Approximately(importer.spritePixelsPerUnit, 100f))
+            {
+                importer.spritePixelsPerUnit = 100f;
+                changed = true;
+            }
+            if (changed)
+                importer.SaveAndReimport();
         }
 
         private static void EnsureFolder(string assetPath)

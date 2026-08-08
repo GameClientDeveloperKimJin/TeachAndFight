@@ -30,6 +30,23 @@ namespace TeachAndFight.Match.UI
         [SerializeField] private GameObject resultBannerRoot;
         [SerializeField] private Text resultBannerText;
 
+        [Header("캐릭터 아트 (비워두면 기존 사각형 placeholder로 동작)")]
+        [Tooltip("제자(주인공) 애니메이터 컨트롤러: DisciplePreview.controller")]
+        [SerializeField] private RuntimeAnimatorController discipleController;
+        [Tooltip("상대 컨트롤러 5종. 순서대로 1층~5층: Rush, IronWall, Shadow, Chameleon, Master")]
+        [SerializeField] private RuntimeAnimatorController[] opponentControllers = new RuntimeAnimatorController[5];
+        [Tooltip("실제 스프라이트(PPU 128)가 커서 아레나에 맞게 축소. Play 화면 보며 조절.")]
+        [SerializeField] private float characterScale = 0.25f;
+
+        [Tooltip("캐릭터 스프라이트 정렬 순서. 배경(월드 스프라이트)은 이 값보다 낮게 두면 캐릭터가 배경 위에 보인다.")]
+        [SerializeField] private int characterSortingOrder = 0;
+
+        [Header("배경 (월드 스프라이트로 캐릭터 뒤에 자동 배치)")]
+        [Tooltip("경기 배경 스프라이트. 지정하면 카메라 전체를 덮도록 캐릭터 뒤에 깔린다. UI 배경 Image는 지우거나 비활성화할 것.")]
+        [SerializeField] private Sprite backgroundSprite;
+        [Tooltip("배경 정렬 순서. 캐릭터(기본 0)보다 낮아야 뒤로 간다.")]
+        [SerializeField] private int backgroundSortingOrder = -10;
+
         private const float BigHitSlowMoDuration = 0.3f; // 04장: 결정타 0.3초 슬로모
         private const float BigHitSlowMoScale = 0.3f;
         private const float ResultBannerHoldSeconds = 2f; // 04장: 승/패 배너 2초 후 자동 전환
@@ -58,8 +75,10 @@ namespace TeachAndFight.Match.UI
 
             config = CombatConfigLoader.Load();
 
-            selfFighter = CreatePlaceholderFighter("제자", Color.cyan);
-            enemyFighter = CreatePlaceholderFighter(session.CurrentOpponent.FighterName, Color.red);
+            CreateBackground();
+
+            selfFighter = CreateFighter("제자", discipleController, Color.cyan);
+            enemyFighter = CreateFighter(session.CurrentOpponent.FighterName, OpponentControllerFor(session.OpponentIndex), Color.red);
 
             float half = config.Arena.StartDistance * 0.5f;
             selfFighter.Init(config, enemyFighter, -half);
@@ -203,15 +222,89 @@ namespace TeachAndFight.Match.UI
 
         private static Sprite placeholderSprite;
 
-        // 캐릭터 에셋(#21) 전이라 눈에 보이는 사각형 대체 스프라이트 사용.
-        private static FighterController CreatePlaceholderFighter(string name, Color color)
+        // 배경을 UI가 아닌 월드 스프라이트로 캐릭터 뒤에 깐다(A 방식). 카메라 전체를 덮도록 스케일.
+        // backgroundSprite 미지정 시 아무것도 안 하므로 안전.
+        private void CreateBackground()
+        {
+            if (backgroundSprite == null)
+                return;
+
+            var go = new GameObject("Background_World");
+            var sr = go.AddComponent<SpriteRenderer>();
+            sr.sprite = backgroundSprite;
+            sr.sortingOrder = backgroundSortingOrder; // 캐릭터(기본 0)보다 낮음 → 뒤로.
+
+            var cam = Camera.main != null ? Camera.main : FindObjectOfType<Camera>();
+            if (cam == null || !cam.orthographic)
+            {
+                go.transform.position = Vector3.zero;
+                return;
+            }
+
+            go.transform.position = new Vector3(cam.transform.position.x, cam.transform.position.y, 0f);
+            FitSpriteToCamera(sr, cam, go.transform);
+        }
+
+        // 오쏘그래픽 카메라 화면을 완전히 덮도록 스프라이트를 균일 스케일(cover). 여백 없이 꽉 채움.
+        private static void FitSpriteToCamera(SpriteRenderer sr, Camera cam, Transform t)
+        {
+            if (sr.sprite == null)
+                return;
+            var size = sr.sprite.bounds.size; // 스케일 1일 때 월드 크기
+            if (size.x <= 0f || size.y <= 0f)
+                return;
+
+            float worldHeight = cam.orthographicSize * 2f;
+            float worldWidth = worldHeight * cam.aspect;
+            float scale = Mathf.Max(worldWidth / size.x, worldHeight / size.y);
+            t.localScale = new Vector3(scale, scale, 1f);
+        }
+
+        // OpponentIndex(1~5) → 해당 층 상대 컨트롤러. 미할당/범위밖이면 null(→ 사각형 폴백).
+        private RuntimeAnimatorController OpponentControllerFor(int opponentIndex)
+        {
+            int i = opponentIndex - 1;
+            if (opponentControllers != null && i >= 0 && i < opponentControllers.Length)
+                return opponentControllers[i];
+            return null;
+        }
+
+        // 컨트롤러가 있으면 실제 캐릭터(Animator + FighterAnimatorBridge)로, 없으면 기존 사각형 placeholder로 생성.
+        // 컴포넌트 추가 순서 중요: FighterAnimatorBridge는 FighterController/Animator를 RequireComponent 하므로 먼저 붙인다.
+        private FighterController CreateFighter(string name, RuntimeAnimatorController controller, Color placeholderColor)
         {
             var go = new GameObject(name);
             var renderer = go.AddComponent<SpriteRenderer>();
+            renderer.sortingOrder = characterSortingOrder; // 배경(월드 스프라이트)보다 위에 오도록 명시.
+
+            if (controller != null)
+            {
+                var animator = go.AddComponent<Animator>();
+                animator.runtimeAnimatorController = controller;
+                animator.applyRootMotion = false;
+
+                var fighter = go.AddComponent<FighterController>();
+
+                var bridge = go.AddComponent<FighterAnimatorBridge>();
+                bridge.Configure(fighter, animator, renderer, PrefixOf(controller));
+
+                go.transform.localScale = Vector3.one * characterScale;
+                return fighter;
+            }
+
+            // 폴백: 아트 컨트롤러 미할당 시 기존 사각형 대체 스프라이트.
             renderer.sprite = GetPlaceholderSprite();
-            renderer.color = color;
+            renderer.color = placeholderColor;
             go.transform.localScale = new Vector3(0.8f, 1.8f, 1f);
             return go.AddComponent<FighterController>();
+        }
+
+        // "IronWallPreview" → "IronWall". 상태이름 규칙 {prefix}_Idle 과 맞추기 위해 접미 "Preview" 제거.
+        private static string PrefixOf(RuntimeAnimatorController controller)
+        {
+            const string suffix = "Preview";
+            var n = controller.name;
+            return n.EndsWith(suffix) ? n.Substring(0, n.Length - suffix.Length) : n;
         }
 
         private static Sprite GetPlaceholderSprite()

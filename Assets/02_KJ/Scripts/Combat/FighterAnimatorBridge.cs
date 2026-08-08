@@ -41,6 +41,17 @@ namespace TeachAndFight.Combat
             _currentState = null;
         }
 
+        // 코드에서 AddComponent로 파이터를 만들 때(예: MatchScreenController) 참조/접두를 한 번에 주입한다.
+        // 인스펙터 배선 없이 런타임 생성 파이터에도 아트가 붙게 하기 위함.
+        public void Configure(FighterController fighter, Animator animator, SpriteRenderer spriteRenderer, string characterPrefix)
+        {
+            this.fighter = fighter;
+            this.animator = animator;
+            this.spriteRenderer = spriteRenderer;
+            this.characterPrefix = characterPrefix;
+            _currentState = null;
+        }
+
         // FighterController.Tick이 Update 타이밍에 상태를 갱신하므로, 그 뒤(LateUpdate)에 시각을 반영한다.
         private void LateUpdate()
         {
