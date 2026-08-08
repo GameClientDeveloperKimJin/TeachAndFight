@@ -1,0 +1,44 @@
+name: Deploy WebGL to GitHub Pages
+
+# WebGLBuild/ 폴더에 Unity WebGL 빌드 결과물을 넣고 main 에 push 하면
+# 자동으로 GitHub Pages 에 배포된다. (수동 실행: Actions 탭 → Run workflow)
+on:
+  push:
+    branches: [main]
+    paths:
+      - "WebGLBuild/**"
+      - ".github/workflows/deploy-pages.yml"
+  workflow_dispatch:
+
+# Pages 배포에 필요한 권한.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# 동시에 하나만 배포 (이전 실행이 있으면 취소).
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
+
+      - name: Upload WebGL build
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./WebGLBuild
+
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

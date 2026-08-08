@@ -20,6 +20,37 @@ const MAX_USER_LEN = 2000;   // 사용자 입력 상한(자수) — 규칙 텍�
 const RATE_WINDOW_MS = 60_000;
 const RATE_MAX_PER_WINDOW = 20; // 동일 IP 분당 최대 요청 수
 
+// CORS 허용 오리진.
+// WebGL 빌드가 GitHub Pages(다른 오리진)에서 이 프록시를 호출하면 브라우저가
+// preflight(OPTIONS) → 실제요청 순서로 검사한다. 아래 오리진만 통과시킨다.
+// 커스텀 도메인/추가 오리진은 Vercel 환경변수 ALLOWED_ORIGINS(쉼표구분)로 코드 수정 없이 추가.
+const DEFAULT_ALLOWED_ORIGINS = [
+  "https://gameclientdeveloperkimjin.github.io", // GitHub Pages 배포 오리진
+  "http://localhost:8080",  // 로컬 WebGL 테스트 (unity-serve 등)
+  "http://localhost:3000",
+  "http://127.0.0.1:8080",
+  "http://127.0.0.1:3000",
+];
+const ALLOWED_ORIGINS = new Set([
+  ...DEFAULT_ALLOWED_ORIGINS,
+  ...(process.env.ALLOWED_ORIGINS || "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+]);
+
+// 요청 Origin이 허용목록에 있으면 그 값을 그대로 반사(echo)해 CORS 헤더를 설정한다.
+function applyCors(req, res) {
+  const origin = req.headers.origin;
+  if (origin && ALLOWED_ORIGINS.has(origin)) {
+    res.setHeader("Access-Control-Allow-Origin", origin);
+    res.setHeader("Vary", "Origin");
+  }
+  res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "content-type");
+  res.setHeader("Access-Control-Max-Age", "86400");
+}
+
 // 아주 단순한 인메모리 rate limit (해커톤 시연용 최소 방어).
 // 주의: 서버리스는 인스턴스가 여러 개 뜨거나 콜드스타트로 초기화될 수 있어 완벽하지 않다.
 // 엄격한 제한이 필요하면 Vercel KV / Upstash Redis 같은 외부 저장소로 교체할 것.
@@ -34,6 +65,12 @@ function rateLimited(ip) {
 }
 
 export default async function handler(req, res) {
+  // 0) CORS — 모든 응답에 헤더를 붙이고, preflight(OPTIONS)는 즉시 204로 끝낸다.
+  applyCors(req, res);
+  if (req.method === "OPTIONS") {
+    return res.status(204).end();
+  }
+
   // 1) 메서드 제한
   if (req.method !== "POST") {
     return res.status(405).json({ error: "POST만 허용됩니다." });
