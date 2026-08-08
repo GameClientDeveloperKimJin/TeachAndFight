@@ -52,17 +52,13 @@
       }
 
       var buildUrl = "Build";
-      var loaderUrl = buildUrl + "/Build.loader.js";
+      var loaderUrl = buildUrl + "/WebGLBuild.loader.js";
       var config = {
         arguments: [],
-        dataUrl: buildUrl + "/Build.data",
-        frameworkUrl: buildUrl + "/Build.framework.js",
-        codeUrl: buildUrl + "/Build.wasm",
-        // [수동 패치] Unity 6000.0.38f1 기본 WebGL 템플릿이 config.workerUrl 을 누락해
-        // 로더의 cacheControl(m.workerUrl)에서 undefined.match 크래시가 남. 압축/스레드 미사용
-        // 빌드라 이 워커는 실제 실행되지 않지만, 로더가 참조하므로 유효한 파일을 지정해준다.
-        // ※ 재빌드 시 index.html 이 새로 생성되면 이 줄이 사라지므로 다시 넣어야 함.
-        workerUrl: buildUrl + "/Build.worker.js",
+        dataUrl: buildUrl + "/WebGLBuild.data",
+        frameworkUrl: buildUrl + "/WebGLBuild.framework.js",
+        codeUrl: buildUrl + "/WebGLBuild.wasm",
+        workerUrl: buildUrl + "/WebGLBuild.worker.js", // [auto-patch] Unity6 기본템플릿 workerUrl 누락 크래시 우회
         streamingAssetsUrl: "StreamingAssets",
         companyName: "DefaultCompany",
         productName: "TeachAndFight",

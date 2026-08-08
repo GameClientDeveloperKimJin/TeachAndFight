@@ -18,8 +18,12 @@ namespace TeachAndFight.Training.EditorTools
         private const string ScenePath = ScenesDir + "/Training.unity";
         private const string PrefabDir = "Assets/03_JM/Prefabs/Training";
 
-        // Unity 6는 기본 Arial이 빠져 LegacyRuntime.ttf가 내장 대체 폰트. 없으면 Text가 안 보인다.
-        private static Font UIFont => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        // 한글 표시용 폰트. LegacyRuntime.ttf(내장)는 한글 글리프가 없어 WebGL에서 □로 나오므로
+        // 나눔고딕을 우선 사용하고, 없을 때만 내장 폰트로 폴백한다. (에디터에서는 OS 폰트 대체로 한글이 보이지만
+        // WebGL 빌드에는 OS 폰트 대체가 없어 반드시 한글 글리프가 포함된 폰트가 필요하다.)
+        private static Font UIFont =>
+            AssetDatabase.LoadAssetAtPath<Font>("Assets/Fonts/NanumGothic.ttf")
+            ?? Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         private static readonly Color Ink = new Color(0.12f, 0.12f, 0.14f);
         private static readonly Color Panel = new Color(0.16f, 0.17f, 0.20f, 0.9f);
 
