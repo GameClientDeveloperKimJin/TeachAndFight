@@ -5,7 +5,8 @@
         "TeachAndFight.Core",
         "TeachAndFight.Combat",
         "TeachAndFight.Flow",
-        "UnityEngine.UI"
+        "UnityEngine.UI",
+        "Unity.InputSystem"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
